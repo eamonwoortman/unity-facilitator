@@ -8,18 +8,18 @@
 # description:  A service which facilitates connections between
 #               two Unity instances attempting NAT punchthrough.
 # processname:  Facilitator
-# pidfile:      /home/unityserver/Production/Facilitator/Facilitator.pid
+# pidfile:      /opt/unity-facilitator/Facilitator.pid
 # config:       /etc/monitrc
 #
 # ------------------------------------
 # Change this to suit your setup
 
 BINARYNAME=Facilitator
+HOMEDIR=/opt/unity-facilitator
 OPTIONS=""
+USERNAME=""
 
-HOMEDIR=/home/unityserver/Production/Facilitator
 COMMAND="./${BINARYNAME} -d ${OPTIONS}"
-USERNAME=unityserver
 
 # ------------------------------------
 
@@ -29,8 +29,19 @@ RETVAL=0
 case "$1" in
   start)
 	[ -f ${HOMEDIR}/${BINARYNAME}.pid ] && echo $BINARYNAME already running && exit 0
+	if [ ! -w /var/lock/subsys/ ]; then 
+		echo "Please run as a super user"
+		exit 0
+	fi
+
 	echo -n "Starting $BINARYNAME: "
-        su $USERNAME -c "cd ${HOMEDIR} && ${COMMAND}"
+	if [[ $USERNAME ]]
+	then
+
+	        su $USERNAME -c "cd ${HOMEDIR} && ${COMMAND}"
+	else
+		cd ${HOMEDIR} && ${COMMAND}
+	fi
 	RETVAL=$?
         echo
 	[ $RETVAL = 0 ] && touch /var/lock/subsys/$BINARYNAME
@@ -40,7 +51,7 @@ case "$1" in
 	cat ${HOMEDIR}/${BINARYNAME}.pid | xargs kill
 	RETVAL=$?
         echo
-	[ $RETVAL = 0 ] && rm -f /var/lock/subsys/BINARYNAME
+	[ $RETVAL = 0 ] && rm -f /var/lock/subsys/$BINARYNAME
         ;;
   restart)
   	$0 stop
@@ -52,7 +63,7 @@ case "$1" in
        [ -e /var/lock/subsys/$BINARYNAME ] && $0 restart
        ;;
   status)
-        status $BINARYNAME
+        [ -f ${HOMEDIR}/${BINARYNAME}.pid ] && echo $BINARYNAME is running || echo $BINARYNAME is not running
 	RETVAL=$?
 	;;
   *)
