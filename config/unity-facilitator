@@ -19,6 +19,21 @@ HOMEDIR=/opt/unity-facilitator
 OPTIONS=""
 USERNAME=""
 
+# config where you can define the UNITY_EXTERNAL_IP_x environment variables
+if  [ -f /etc/sysconfig/unity-facilitator ] ; then
+	.  /etc/sysconfig/unity-facilitator
+fi
+
+if [[ $UNITY_EXTERNAL_IP_1 ]]
+then
+	OPTIONS="-h $UNITY_EXTERNAL_IP_1"
+fi
+
+if [[ $UNITY_EXTERNAL_IP_2 ]]
+then
+	OPTIONS="$OPTIONS -b $UNITY_EXTERNAL_IP_2"
+fi
+
 COMMAND="./${BINARYNAME} -d ${OPTIONS}"
 
 # ------------------------------------
