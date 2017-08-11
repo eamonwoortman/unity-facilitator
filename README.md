@@ -26,9 +26,10 @@ Accepted parameters are:
         -d      Daemon mode, run in the background
         -l      Use given log file
         -e      Debug level (0=OnlyErrors, 1=Warnings, 2=Informational(default), 2=FullDebug)
-        -c      Connection count
+        -c      Max connection count. [1000]
+        -s      Statistics print delay (in seconds). [0]
         -h      Bind to listen address
-        -b      Bind another external test addresses. The second external address adds support for port striding, improving success rate
+        -b      Bind a second (external) addresses. When using 2 IP addresses, NATPunchthroughServer supports port stride detection, improving success rate
 ```
 
 NOTE
