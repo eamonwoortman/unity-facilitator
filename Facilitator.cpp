@@ -70,7 +70,7 @@ void usage()
 		   "-l\tUse given log file\n\t"
 		   "-e\tDebug level (0=OnlyErrors, 1=Warnings, 2=Informational(default), 2=FullDebug)\n\t"
 		   "-c\tMax connection count. [1000]\n\t"
-		   "-s\tStatistics print delay (in seconds). [0]\n\n"
+		   "-s\tStatistics print delay (in seconds). [0]\n\t"
 		   "-h\tBind to listen address\n\t"
 		   "-b\tBind a second (external) addresses. When using 2 IP addresses, NATPunchthroughServer supports port stride detection, improving success rate\n\n"
 		   "If any parameter is omitted the default value is used.\n");
