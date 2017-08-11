@@ -126,6 +126,11 @@ bool validate_ip(const char* ip)
 	bool valid = true;
 	int i = 0;
 	int dotCount = 0;
+
+	if (ip == NULL) {
+		return false;
+	}
+
 	while (ip[i] != 0)
 	{
 		if (ip[i++] == '.')
