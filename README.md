@@ -32,10 +32,10 @@ Accepted parameters are:
         -b      Bind a second (external) addresses. When using 2 IP addresses, NATPunchthroughServer supports port stride detection, improving success rate
 ```
 
-NOTE
+Note
 --
 If you are using AWS, make sure you add all 'allow all UDP traffic' to the security group.
 
-CREDITS
+Credits
 --
 Credits go to [@noblewhale](https://github.com/noblewhale) for creating his version of the Facilitator. 
