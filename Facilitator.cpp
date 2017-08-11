@@ -326,6 +326,7 @@ int main(int argc, char *argv[])
 	if (bindToIP2 == NULL) 
 		bindToIP2 = ipList[1].ToString(false);
 
+	// If RakPeer is started on 2 IP addresses, NATPunchthroughServer supports port stride detection, improving success rate
 	int sdLen = 1;
 	SocketDescriptor sd[2];
 
