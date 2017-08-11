@@ -1,9 +1,17 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 /// \file
 /// \brief A simple class to encode and decode known strings based on a lookup table.  Similar to the StringCompressor class.
 ///
-/// This file is part of RakNet Copyright 2003 Jenkins Software LLC
-///
-/// Usage of RakNet is subject to the appropriate license agreement.
+
 
 
 #ifndef __STRING_TABLE_H
@@ -28,10 +36,11 @@ struct StrAndBool
 	char *str;
 	bool b;
 };
-int RAK_DLL_EXPORT StrAndBoolComp( char *const &key, const StrAndBool &data );
 
 namespace RakNet
 {
+	int RAK_DLL_EXPORT StrAndBoolComp( char *const &key, const StrAndBool &data );
+
 	/// \details This is an even more efficient alternative to StringCompressor in that it writes a single byte from a lookup table and only does compression.<BR>
 	/// if the string does not already exist in the table.<BR>
 	/// All string tables must match on all systems - hence you must add all the strings in the same order on all systems.<BR>

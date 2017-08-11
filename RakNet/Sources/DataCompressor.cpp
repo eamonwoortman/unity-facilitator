@@ -1,7 +1,21 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 #include "DataCompressor.h"
 #include "DS_HuffmanEncodingTree.h"
 #include "RakAssert.h"
 #include <string.h> // Use string.h rather than memory.h for a console
+
+using namespace RakNet;
+
+STATIC_FACTORY_DEFINITIONS(DataCompressor,DataCompressor)
 
 void DataCompressor::Compress( unsigned char *userData, unsigned sizeInBytes, RakNet::BitStream * output )
 {
@@ -51,7 +65,7 @@ unsigned DataCompressor::DecompressAndAllocate( RakNet::BitStream * input, unsig
 #endif
 		return 0;
 	}
-	*output = (unsigned char*) rakMalloc_Ex(destinationSizeInBytes, __FILE__, __LINE__);
+	*output = (unsigned char*) rakMalloc_Ex(destinationSizeInBytes, _FILE_AND_LINE_);
 	tree.GenerateFromFrequencyTable(frequencyTable);
 	decompressedBytes=tree.DecodeArray(input, bitsUsed, destinationSizeInBytes, *output );
 	RakAssert(decompressedBytes==destinationSizeInBytes);

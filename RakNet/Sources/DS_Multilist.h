@@ -1,11 +1,17 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 /// \file DS_Multilist.h
 /// \internal
 /// \brief ADT that can represent an unordered list, ordered list, stack, or queue with a common interface
 ///
-/// This file is part of RakNet Copyright 2003 Jenkins Software LLC
-///
-/// Usage of RakNet is subject to the appropriate license agreement.
-
 
 #ifndef __MULTILIST_H
 #define __MULTILIST_H 
@@ -276,7 +282,7 @@ namespace DataStructures
 	Multilist<_MultilistType, _DataType, _KeyType, _IndexType>::~Multilist()
 	{
 		if (data!=0)
-			RakNet::OP_DELETE_ARRAY(data, __FILE__, __LINE__);
+			RakNet::OP_DELETE_ARRAY(data, _FILE_AND_LINE_);
 	}
 
 	template <const MultilistType _MultilistType, class _DataType, class _KeyType, class _IndexType>
@@ -311,7 +317,7 @@ namespace DataStructures
 		else
 		{
 			allocationSize=dataSize;
-			data = RakNet::OP_NEW_ARRAY<_DataType>(dataSize,__FILE__,__LINE__);
+			data = RakNet::OP_NEW_ARRAY<_DataType>(dataSize,_FILE_AND_LINE_);
 			_IndexType i;
 			for (i=0; i < dataSize; i++)
 				data[i]=source[i];
@@ -1039,7 +1045,7 @@ namespace DataStructures
 				if (queueTail < queueHead)
 				{
 					// Realign data if wrapped
-					ReallocToSize(dataSize, __FILE__, __LINE__);
+					ReallocToSize(dataSize, _FILE_AND_LINE_);
 				}
 				else
 				{
@@ -1097,37 +1103,37 @@ namespace DataStructures
 		source2.SetSortOrder(true);
 		source1.Sort(false);
 		source2.Sort(false);
-		intersection.Clear(true,__FILE__, __LINE__);
-		uniqueToSource1.Clear(true,__FILE__, __LINE__);
-		uniqueToSource2.Clear(true,__FILE__, __LINE__);
+		intersection.Clear(true,_FILE_AND_LINE_);
+		uniqueToSource1.Clear(true,_FILE_AND_LINE_);
+		uniqueToSource2.Clear(true,_FILE_AND_LINE_);
 		
 		while (index1 < source1.GetSize() && index2 < source2.GetSize())
 		{
 			if (source1[index1]<source2[index2])
 			{
-				uniqueToSource1.Push(source1[index1],__FILE__,__LINE__);
+				uniqueToSource1.Push(source1[index1],_FILE_AND_LINE_);
 				index1++;
 			}
 			else if (source1[index1]==source2[index2])
 			{
-				intersection.Push(source1[index1],__FILE__,__LINE__);
+				intersection.Push(source1[index1],_FILE_AND_LINE_);
 				index1++;
 				index2++;
 			}
 			else
 			{
-				uniqueToSource2.Push(source2[index2],__FILE__,__LINE__);
+				uniqueToSource2.Push(source2[index2],_FILE_AND_LINE_);
 				index2++;
 			}
 		}
 		while (index1 < source1.GetSize())
 		{
-			uniqueToSource1.Push(source1[index1],__FILE__,__LINE__);
+			uniqueToSource1.Push(source1[index1],_FILE_AND_LINE_);
 			index1++;
 		}
 		while (index2 < source2.GetSize())
 		{
-			uniqueToSource2.Push(source2[index2],__FILE__,__LINE__);
+			uniqueToSource2.Push(source2[index2],_FILE_AND_LINE_);
 			index2++;
 		}
 	}
@@ -1347,25 +1353,25 @@ void MultilistUnitTest(void)
 	ml1.RemoveAtIndex(0);
 	RakAssert(ml1.GetSize()==oldSize-1);
 	RakAssert(ml1.PeekOpposite()==1);
-	ml1.Clear(__FILE__, __LINE__);
+	ml1.Clear(_FILE_AND_LINE_);
 	RakAssert(ml1.IsEmpty()==true);
 
 	ml1.Sort(true);
-	ml1.Clear(__FILE__, __LINE__);
+	ml1.Clear(_FILE_AND_LINE_);
 
 	ml1.Push(100);
 	ml1.Sort(true);
-	ml1.Clear(__FILE__, __LINE__);
+	ml1.Clear(_FILE_AND_LINE_);
 
 	ml1.Push(50);
 	ml1.Push(100);
 	ml1.Sort(true);
-	ml1.Clear(__FILE__, __LINE__);
+	ml1.Clear(_FILE_AND_LINE_);
 
 	ml1.Push(100);
 	ml1.Push(50);
 	ml1.Sort(true);
-	ml1.Clear(__FILE__, __LINE__);
+	ml1.Clear(_FILE_AND_LINE_);
 
 	ml1.Push(100);
 	ml1.Push(50);
@@ -1383,7 +1389,7 @@ void MultilistUnitTest(void)
 	RakAssert(ml1.GetIndexOf(100)==2);
 	RakAssert(ml1.GetIndexOf(150)==3);
 	RakAssert(ml1.GetIndexOf(175)==4);
-	ml1.Clear(__FILE__, __LINE__);
+	ml1.Clear(_FILE_AND_LINE_);
 
 	ml1.Push(1);
 	ml1.Push(2);
@@ -1401,7 +1407,7 @@ void MultilistUnitTest(void)
 	RakAssert(ml1.GetIndexOf(3)==2);
 	RakAssert(ml1.GetIndexOf(4)==3);
 	RakAssert(ml1.GetIndexOf(5)==4);
-	ml1.Clear(__FILE__, __LINE__);
+	ml1.Clear(_FILE_AND_LINE_);
 
 	ml1.Push(5);
 	ml1.Push(4);
@@ -1430,7 +1436,7 @@ void MultilistUnitTest(void)
 	RakAssert(ml1.GetIndexOf(3)==2);
 	RakAssert(ml1.GetIndexOf(4)==3);
 	RakAssert(ml1.GetIndexOf(5)==4);
-	ml1.Clear(__FILE__, __LINE__);
+	ml1.Clear(_FILE_AND_LINE_);
 
 	DataStructures::Multilist<ML_STACK, int> ml2;
 	ml2.Reallocate(64);
@@ -1457,7 +1463,7 @@ void MultilistUnitTest(void)
 	RakAssert(ml2.GetSize()==oldSize-1);
 	RakAssert(ml2.Peek()==1);
 	RakAssert(ml2.PeekOpposite()==510);
-	ml2.Clear(__FILE__, __LINE__);
+	ml2.Clear(_FILE_AND_LINE_);
 	RakAssert(ml2.IsEmpty()==true);
 
 	DataStructures::Multilist<ML_QUEUE, int> ml3;
@@ -1484,7 +1490,7 @@ void MultilistUnitTest(void)
 	RakAssert(ml3.GetSize()==oldSize-1);
 	RakAssert(ml3.Peek()==509);
 	RakAssert(ml3.PeekOpposite()==0);
-	ml3.Clear(__FILE__, __LINE__);
+	ml3.Clear(_FILE_AND_LINE_);
 	RakAssert(ml3.IsEmpty()==true);
 
 	ml3.PushOpposite(100);
@@ -1503,7 +1509,7 @@ void MultilistUnitTest(void)
 	RakAssert(ml3.GetIndexOf(100)==2);
 	RakAssert(ml3.GetIndexOf(150)==3);
 	RakAssert(ml3.GetIndexOf(175)==4);
-	ml3.Clear(__FILE__, __LINE__);
+	ml3.Clear(_FILE_AND_LINE_);
 
 	ml3.PushOpposite(1);
 	ml3.PushOpposite(2);
@@ -1521,7 +1527,7 @@ void MultilistUnitTest(void)
 	RakAssert(ml3.GetIndexOf(3)==2);
 	RakAssert(ml3.GetIndexOf(4)==3);
 	RakAssert(ml3.GetIndexOf(5)==4);
-	ml3.Clear(__FILE__, __LINE__);
+	ml3.Clear(_FILE_AND_LINE_);
 
 	ml3.PushOpposite(5);
 	ml3.PushOpposite(4);
@@ -1564,7 +1570,7 @@ void MultilistUnitTest(void)
 	RakAssert(ml3.GetIndexOf(4)==1);
 	RakAssert(ml3.GetIndexOf(5)==0);
 
-	ml3.Clear(__FILE__, __LINE__);
+	ml3.Clear(_FILE_AND_LINE_);
 
 	DataStructures::Multilist<ML_ORDERED_LIST, int> ml4;
 	ml4.Reallocate(64);
@@ -1591,7 +1597,7 @@ void MultilistUnitTest(void)
 	RakAssert(ml4.GetSize()==oldSize-1);
 	RakAssert(ml4.Peek()==1);
 	RakAssert(ml4.PeekOpposite()==510);
-	ml4.Clear(__FILE__, __LINE__);
+	ml4.Clear(_FILE_AND_LINE_);
 	RakAssert(ml4.IsEmpty()==true);
 
 	DataStructures::Multilist<ML_ORDERED_LIST, KeyAndValue*, int> ml5;

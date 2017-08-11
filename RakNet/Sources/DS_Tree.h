@@ -1,10 +1,18 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 /// \file DS_Tree.h
 /// \internal
 /// \brief Just a regular tree
 ///
-/// This file is part of RakNet Copyright 2003 Jenkins Software LLC
-///
-/// Usage of RakNet is subject to the appropriate license agreement.
+
 
 
 #ifndef __DS_TREE_H
@@ -65,7 +73,7 @@ namespace DataStructures
 		while (queue.Size())
 		{
 			node=queue.Pop();
-			output.Insert(node, __FILE__, __LINE__);
+			output.Insert(node, _FILE_AND_LINE_);
 			for (i=0; i < node->children.Size(); i++)
 				queue.Push(node->children[i]);
 		}
@@ -74,7 +82,7 @@ namespace DataStructures
 	template <class TreeType>
 	void Tree<TreeType>::AddChild(TreeType &newData)
 	{
-		children.Insert(RakNet::OP_NEW<Tree>(newData, __FILE__, __LINE__));
+		children.Insert(RakNet::OP_NEW<Tree>(newData, _FILE_AND_LINE_));
 	}
 
 	template <class TreeType>
@@ -85,13 +93,13 @@ namespace DataStructures
 		LevelOrderTraversal(output);
 		unsigned i;
 		for (i=0; i < output.Size(); i++)
-			RakNet::OP_DELETE(output[i], __FILE__, __LINE__);
+			RakNet::OP_DELETE(output[i], _FILE_AND_LINE_);
 */
 
 		// Already recursive to do this
 		unsigned int i;
 		for (i=0; i < children.Size(); i++)
-			RakNet::OP_DELETE(children[i], __FILE__, __LINE__);
+			RakNet::OP_DELETE(children[i], _FILE_AND_LINE_);
 	}
 }
 

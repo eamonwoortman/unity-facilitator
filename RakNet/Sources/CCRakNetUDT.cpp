@@ -1,4 +1,17 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 #include "CCRakNetUDT.h"
+
+#if USE_SLIDING_WINDOW_CONGESTION_CONTROL!=1
+
 #include "Rand.h"
 #include "MTUSize.h"
 #include <stdio.h>
@@ -142,7 +155,7 @@ void CCRakNetUDT::Update(CCTimeType curTime, bool hasDataToSendOrResend)
 	/// 500 microseconds per byte
 	// printf("No incoming data, halving send rate\n");
 	SND*=2.0;
-	CapMinSnd(__FILE__,__LINE__);
+	CapMinSnd(_FILE_AND_LINE_);
 	ExpCount+=1.0;
 	if (ExpCount>8.0)
 	ExpCount=8.0;
@@ -223,6 +236,11 @@ bool CCRakNetUDT::ShouldSendACKs(CCTimeType curTime, CCTimeType estimatedTimeToN
 }
 // ----------------------------------------------------------------------------------------------------------------------------
 DatagramSequenceNumberType CCRakNetUDT::GetNextDatagramSequenceNumber(void)
+{
+	return nextDatagramSequenceNumber;
+}
+// ----------------------------------------------------------------------------------------------------------------------------
+DatagramSequenceNumberType CCRakNetUDT::GetAndIncrementNextDatagramSequenceNumber(void)
 {
 	DatagramSequenceNumberType dsnt=nextDatagramSequenceNumber;
 	nextDatagramSequenceNumber++;
@@ -350,10 +368,10 @@ CCTimeType CCRakNetUDT::GetSenderRTOForACK(void) const
 	return (CCTimeType)(RTT + RTTVarMultiple * RTTVar + SYN);
 }
 // ----------------------------------------------------------------------------------------------------------------------------
-CCTimeType CCRakNetUDT::GetRTOForRetransmission(void) const
+CCTimeType CCRakNetUDT::GetRTOForRetransmission(unsigned char timesSent) const
 {
 #if CC_TIME_TYPE_BYTES==4
-	const CCTimeType maxThreshold=1000;
+	const CCTimeType maxThreshold=10000;
 	const CCTimeType minThreshold=100;
 #else
 	const CCTimeType maxThreshold=1000000;
@@ -374,7 +392,7 @@ CCTimeType CCRakNetUDT::GetRTOForRetransmission(void) const
 	return ret;
 }
 // ----------------------------------------------------------------------------------------------------------------------------
-void CCRakNetUDT::OnResend(CCTimeType curTime)
+void CCRakNetUDT::OnResend(CCTimeType curTime, RakNet::TimeUS nextActionTime)
 {
 	(void) curTime;
 
@@ -388,7 +406,7 @@ void CCRakNetUDT::OnResend(CCTimeType curTime)
 	if (hadPacketlossThisBlock==false)
 	{
 		// Logging
-//		 printf("Sending SLOWER due to Resend, Rate=%f MBPS. Rtt=%i\n", GetLocalSendRate(),  lastRtt );
+		// printf("Sending SLOWER due to Resend, Rate=%f MBPS. Rtt=%i\n", GetLocalSendRate(),  lastRtt );
 
 		IncreaseTimeBetweenSends();
 		hadPacketlossThisBlock=true;
@@ -410,13 +428,13 @@ void CCRakNetUDT::OnNAK(CCTimeType curTime, DatagramSequenceNumberType nakSequen
 	if (hadPacketlossThisBlock==false)
 	{
 		// Logging
-// 		printf("Sending SLOWER due to NAK, Rate=%f MBPS. Rtt=%i\n", GetLocalSendRate(),  lastRtt );
-// 		if (pingsLastInterval.Size()>10)
-// 		{
-// 			for (int i=0; i < 10; i++)
-// 				printf("%i, ", pingsLastInterval[pingsLastInterval.Size()-1-i]/1000);
-// 		}
-// 		printf("\n");
+		//printf("Sending SLOWER due to NAK, Rate=%f MBPS. Rtt=%i\n", GetLocalSendRate(),  lastRtt );
+		if (pingsLastInterval.Size()>10)
+		{
+			for (int i=0; i < 10; i++)
+				printf("%i, ", pingsLastInterval[pingsLastInterval.Size()-1-i]/1000);
+		}
+		printf("\n");
 		IncreaseTimeBetweenSends();
 
 		hadPacketlossThisBlock=true;
@@ -433,7 +451,7 @@ void CCRakNetUDT::EndSlowStart(void)
 
 	isInSlowStart=false;
 	SND=1.0/AS;
-	CapMinSnd(__FILE__,__LINE__);
+	CapMinSnd(_FILE_AND_LINE_);
 
 	// printf("ENDING SLOW START\n");
 #if CC_TIME_TYPE_BYTES==4
@@ -497,7 +515,7 @@ bool CCRakNetUDT::OnGotPacket(DatagramSequenceNumberType datagramSequenceNumber,
 
 			//		if (mostRecentPacketArrivalHistory < (BytesPerMicrosecond)0.0035)
 			//		{
-			//			printf("%s:%i LIKELY BUG: Calculated packetArrivalHistory is below 28.8 Kbps modem\nReport to rakkar@jenkinssoftware.com with file and line number\n", __FILE__, __LINE__);
+			//			printf("%s:%i LIKELY BUG: Calculated packetArrivalHistory is below 28.8 Kbps modem\nReport to rakkar@jenkinssoftware.com with file and line number\n", _FILE_AND_LINE_);
 			//		}
 
 			packetArrivalHistoryContinuousGaps[packetArrivalHistoryContinuousGapsIndex++]=(int) interval;
@@ -650,18 +668,18 @@ void CCRakNetUDT::UpdateWindowSizeAndAckOnAckPerSyn(CCTimeType curTime, CCTimeTy
 		else if (slopeSum < -.10*average)
 		{
 			// Logging
-//			printf("Ping dropping. slope=%f%%. Rate=%f MBPS. Rtt=%i\n", 100.0*slopeSum/average, GetLocalSendRate(),  rtt );
+			//printf("Ping dropping. slope=%f%%. Rate=%f MBPS. Rtt=%i\n", 100.0*slopeSum/average, GetLocalSendRate(),  rtt );
 		}
 		else if (slopeSum > .10*average)
 		{
 			// Logging
-//			printf("Ping rising. slope=%f%%. Rate=%f MBPS. Rtt=%i\n", 100.0*slopeSum/average, GetLocalSendRate(),  rtt );
+			//printf("Ping rising. slope=%f%%. Rate=%f MBPS. Rtt=%i\n", 100.0*slopeSum/average, GetLocalSendRate(),  rtt );
 			IncreaseTimeBetweenSends();
 		}
 		else
 		{
 			// Logging
-//			printf("Ping stable. slope=%f%%. Rate=%f MBPS. Rtt=%i\n", 100.0*slopeSum/average, GetLocalSendRate(),  rtt );
+			//printf("Ping stable. slope=%f%%. Rate=%f MBPS. Rtt=%i\n", 100.0*slopeSum/average, GetLocalSendRate(),  rtt );
 
 			// No packetloss over time threshhold, and rtt decreased, so send faster
 			lastRttOnIncreaseSendRate=rtt;
@@ -712,7 +730,7 @@ void CCRakNetUDT::PrintLowBandwidthWarning(void)
 	printf("Pipe from packet pair = %f megabytes per second\n", B);
 	printf("RTT=%f milliseconds\n", RTT/1000.0);
 	printf("RTT Variance=%f milliseconds\n", RTTVar/1000.0);
-	printf("Retransmission=%i milliseconds\n", GetRTOForRetransmission()/1000);
+	printf("Retransmission=%i milliseconds\n", GetRTOForRetransmission(1)/1000);
 	printf("Packet arrival rate on the remote system=%f megabytes per second\n", AS);
 	printf("Packet arrival rate on our system=%f megabytes per second\n", ReceiverCalculateDataArrivalRate());
 	printf("isInSlowStart=%i\n", isInSlowStart);
@@ -737,7 +755,7 @@ void CCRakNetUDT::CapMinSnd(const char *file, int line)
 	if (SND > 500)
 	{
 		SND=500;
-		CC_DEBUG_PRINTF_3("%s:%i LIKELY BUG: SND has gotten below 500 microseconds between messages (28.8 modem)\nReport to rakkar@jenkinssoftware.com with file and line number\n", file, line);
+		CC_DEBUG_PRINTF_3("%s:%i LIKELY BUG: SND has gotten above 500 microseconds between messages (28.8 modem)\nReport to rakkar@jenkinssoftware.com with file and line number\n", file, line);
 	}
 }
 void CCRakNetUDT::IncreaseTimeBetweenSends(void)
@@ -748,13 +766,12 @@ void CCRakNetUDT::IncreaseTimeBetweenSends(void)
 	// (SND+1.0) brings it to the range of 1 to 501
 	// Square the number, which is the range of 1 to 251001
 	// Divide by 251001, which is the range of 1/251001 to 1
-	// Multiple by .02
 
 	double increment;
 	increment = .02 * ((SND+1.0) * (SND+1.0)) / (501.0*501.0) ;
 	// SND=500 then increment=.02
 	// SND=0 then increment=near 0
-	SND*=(1.04 - increment);
+	SND*=(1.02 - increment);
 
 	// SND=0 then fast increase, slow decrease
 	// SND=500 then slow increase, fast decrease
@@ -787,3 +804,5 @@ void CCRakNetUDT::SetTimeBetweenSendsLimit(unsigned int bitsPerSecond)
 		SND=limit;
 }
 */
+
+#endif

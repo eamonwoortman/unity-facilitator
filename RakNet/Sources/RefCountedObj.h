@@ -1,9 +1,17 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 /// \file
 /// \brief \b Reference counted object. Very simple class for quick and dirty uses.
 ///
-/// This file is part of RakNet Copyright 2003 Jenkins Software LLC
-///
-/// Usage of RakNet is subject to the appropriate license agreement.
+
 
 
 #ifndef __REF_COUNTED_OBJ_H
@@ -18,7 +26,7 @@ class RefCountedObj
 		RefCountedObj() {refCount=1;}
 		virtual ~RefCountedObj() {}
 		void AddRef(void) {refCount++;}
-		void Deref(void) {if (--refCount==0) RakNet::OP_DELETE(this, __FILE__, __LINE__);}
+		void Deref(void) {if (--refCount==0) RakNet::OP_DELETE(this, _FILE_AND_LINE_);}
 		int refCount;
 };
 

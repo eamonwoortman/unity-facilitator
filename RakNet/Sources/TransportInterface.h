@@ -1,9 +1,17 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 /// \file
 /// \brief Contains TransportInterface from which you can derive custom transport providers for ConsoleServer.
 ///
-/// This file is part of RakNet Copyright 2003 Jenkins Software LLC
-///
-/// Usage of RakNet is subject to the appropriate license agreement.
+
 
 
 #ifndef __TRANSPORT_INTERFACE_H
@@ -15,7 +23,11 @@
 
 #define REMOTE_MAX_TEXT_INPUT 2048
 
+namespace RakNet
+{
+
 class CommandParserInterface;
+
 
 /// \brief Defines an interface that is used to send and receive null-terminated strings.
 /// \details In practice this is only used by the CommandParser system for for servers.
@@ -72,6 +84,8 @@ public:
 	virtual CommandParserInterface* GetCommandParser(void)=0;
 protected:
 };
+
+} // namespace RakNet
 
 #endif
 

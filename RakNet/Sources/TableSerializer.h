@@ -1,3 +1,13 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 #ifndef __TABLE_SERIALIZER_H
 #define __TABLE_SERIALIZER_H
 
@@ -9,6 +19,9 @@ namespace RakNet
 {
 	class BitStream;
 }
+
+namespace RakNet
+{
 
 class RAK_DLL_EXPORT TableSerializer
 {
@@ -32,6 +45,8 @@ public:
 	static bool DeserializeFilterQueryList(RakNet::BitStream *out, DataStructures::Table::FilterQuery **query, unsigned int *numQueries, unsigned int maxQueries, int allocateExtraQueries=0);
 	static void DeallocateQueryList(DataStructures::Table::FilterQuery *query, unsigned int numQueries);
 };
+
+} // namespace RakNet
 
 #endif
 

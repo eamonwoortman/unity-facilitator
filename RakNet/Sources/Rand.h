@@ -1,9 +1,16 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 /// \file
 /// \brief \b [Internal] Random number generator
 ///
-/// This file is part of RakNet Copyright 2003 Jenkins Software LLC
-///
-/// Usage of RakNet is subject to the appropriate license agreement.
 
 
 
@@ -35,6 +42,8 @@ extern float RAK_DLL_EXPORT frandomMT( void );
 /// \note not threadSafe, use an instance of RakNetRandom if necessary per thread
 extern void RAK_DLL_EXPORT fillBufferMT( void *buffer, unsigned int bytes );
 
+namespace RakNet {
+
 // Same thing as above functions, but not global
 class RAK_DLL_EXPORT RakNetRandom
 {
@@ -52,5 +61,7 @@ protected:
 	unsigned int *next;
 	int left;
 };
+
+} // namespace RakNet
 
 #endif

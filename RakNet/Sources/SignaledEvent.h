@@ -1,20 +1,37 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 #ifndef __SIGNALED_EVENT_H
 #define __SIGNALED_EVENT_H
 
-#if defined(_XBOX) || defined(X360)
-                            
-#elif defined(_WIN32)
-#include <windows.h>
+
+
+#if   defined(_WIN32)
+#include "WindowsIncludes.h"
+
+
+
 #else
 	#include <pthread.h>
 	#include <sys/types.h>
 	#include "SimpleMutex.h"
-	#if defined(_PS3) || defined(__PS3__) || defined(SN_TARGET_PS3)
-                                                   
-	#endif
+
+
+
+
 #endif
 
 #include "Export.h"
+
+namespace RakNet
+{
 
 class RAK_DLL_EXPORT SignaledEvent
 {
@@ -30,6 +47,11 @@ public:
 protected:
 #ifdef _WIN32
 	HANDLE eventList;
+
+
+
+
+
 #else
 	SimpleMutex isSignaledMutex;
 	bool isSignaled;
@@ -41,5 +63,7 @@ protected:
 	pthread_mutexattr_t mutexAttr;
 #endif
 };
+
+} // namespace RakNet
 
 #endif

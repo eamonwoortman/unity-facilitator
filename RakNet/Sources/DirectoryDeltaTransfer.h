@@ -1,13 +1,21 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 /// \file DirectoryDeltaTransfer.h
 /// \brief Simple class to send changes between directories.  
 /// \details In essence, a simple autopatcher that can be used for transmitting levels, skins, etc.
 ///
-/// This file is part of RakNet Copyright 2003 Jenkins Software LLC
-///
-/// Usage of RakNet is subject to the appropriate license agreement.
+
 
 #include "NativeFeatureIncludes.h"
-#if _RAKNET_SUPPORT_DirectoryDeltaTransfer==1
+#if _RAKNET_SUPPORT_DirectoryDeltaTransfer==1 && _RAKNET_SUPPORT_FileOperations==1
 
 #ifndef __DIRECTORY_DELTA_TRANSFER_H
 #define __DIRECTORY_DELTA_TRANSFER_H
@@ -18,16 +26,6 @@
 #include "PluginInterface2.h"
 #include "DS_Map.h"
 #include "PacketPriority.h"
-
-class RakPeerInterface;
-class FileList;
-struct Packet;
-struct InternalPacket;
-struct DownloadRequest;
-class FileListTransfer;
-class FileListTransferCBInterface;
-class FileListProgress;
-class IncrementalReadInterface;
 
 /// \defgroup DIRECTORY_DELTA_TRANSFER_GROUP DirectoryDeltaTransfer
 /// \brief Simple class to send changes between directories
@@ -50,9 +48,25 @@ class IncrementalReadInterface;
 /// While pathToApplication can be anything you want, applicationSubdirectory must match either partially or fully between systems.
 /// \ingroup DIRECTORY_DELTA_TRANSFER_GROUP
 
+namespace RakNet
+{
+/// Forward declarations
+class RakPeerInterface;
+class FileList;
+struct Packet;
+struct InternalPacket;
+struct DownloadRequest;
+class FileListTransfer;
+class FileListTransferCBInterface;
+class FileListProgress;
+class IncrementalReadInterface;
+
 class RAK_DLL_EXPORT DirectoryDeltaTransfer : public PluginInterface2
 {
 public:
+	// GetInstance() and DestroyInstance(instance*)
+	STATIC_FACTORY_DECLARATIONS(DirectoryDeltaTransfer)
+
 	// Constructor
 	DirectoryDeltaTransfer();
 
@@ -86,6 +100,7 @@ public:
 	/// AddUploadsFromSubdirectory("Levels/Level1/"); would allow you to download using DownloadFromSubdirectory("Levels/Level1/Textures/"...
 	/// but it would NOT allow you to download from DownloadFromSubdirectory("Levels/"... or DownloadFromSubdirectory("Levels/Level2/"...
 	/// \pre You must call SetFileListTransferPlugin with a valid FileListTransfer plugin
+	/// \note Blocking. Will block while hashes of the local files are generated
 	/// \param[in] subdir A directory passed to AddUploadsFromSubdirectory on the remote system.  The passed dir can be more specific than the remote dir.
 	/// \param[in] outputSubdir The directory to write the output to.  Usually this will match \a subdir but it can be different if you want.
 	/// \param[in] prependAppDirToOutputSubdir True to prepend outputSubdir with pathToApplication when determining the final output path.  Usually you want this to be true.
@@ -97,18 +112,38 @@ public:
 	/// \return A set ID, identifying this download set.  Returns 65535 on host unreachable.
 	unsigned short DownloadFromSubdirectory(const char *subdir, const char *outputSubdir, bool prependAppDirToOutputSubdir, SystemAddress host, FileListTransferCBInterface *onFileCallback, PacketPriority _priority, char _orderingChannel, FileListProgress *cb);
 
+	/// \brief Downloads files from the matching parameter \a subdir in AddUploadsFromSubdirectory.
+	/// \details \a subdir must contain all starting characters in \a subdir in AddUploadsFromSubdirectory
+	/// Therefore,
+	/// AddUploadsFromSubdirectory("Levels/Level1/"); would allow you to download using DownloadFromSubdirectory("Levels/Level1/Textures/"...
+	/// but it would NOT allow you to download from DownloadFromSubdirectory("Levels/"... or DownloadFromSubdirectory("Levels/Level2/"...
+	/// \pre You must call SetFileListTransferPlugin with a valid FileListTransfer plugin
+	/// \note Nonblocking, but requires call to GenerateHashes()
+	/// \param[in] localFiles Hashes of local files already on the harddrive. Populate with GenerateHashes(), which you may wish to call from a thread
+	/// \param[in] subdir A directory passed to AddUploadsFromSubdirectory on the remote system.  The passed dir can be more specific than the remote dir.
+	/// \param[in] outputSubdir The directory to write the output to.  Usually this will match \a subdir but it can be different if you want.
+	/// \param[in] prependAppDirToOutputSubdir True to prepend outputSubdir with pathToApplication when determining the final output path.  Usually you want this to be true.
+	/// \param[in] host The address of the remote system to send the message to.
+	/// \param[in] onFileCallback Callback to call per-file (optional).  When fileIndex+1==setCount in the callback then the download is done
+	/// \param[in] _priority See RakPeerInterface::Send()
+	/// \param[in] _orderingChannel See RakPeerInterface::Send()
+	/// \param[in] cb Callback to get progress updates. Pass 0 to not use.
+	/// \return A set ID, identifying this download set.  Returns 65535 on host unreachable.
+	unsigned short DownloadFromSubdirectory(FileList &localFiles, const char *subdir, const char *outputSubdir, bool prependAppDirToOutputSubdir, SystemAddress host, FileListTransferCBInterface *onFileCallback, PacketPriority _priority, char _orderingChannel, FileListProgress *cb);
+
+	/// Hash files already on the harddrive, in preparation for a call to DownloadFromSubdirectory(). Passed to second version of DownloadFromSubdirectory()
+	/// This is slow, and it is exposed so you can call it from a thread before calling DownloadFromSubdirectory()
+	/// \param[out] localFiles List of hashed files populated from \a outputSubdir and \a prependAppDirToOutputSubdir
+	/// \param[in] outputSubdir The directory to write the output to.  Usually this will match \a subdir but it can be different if you want.
+	/// \param[in] prependAppDirToOutputSubdir True to prepend outputSubdir with pathToApplication when determining the final output path.  Usually you want this to be true.
+	void GenerateHashes(FileList &localFiles, const char *outputSubdir, bool prependAppDirToOutputSubdir);
+
 	/// \brief Clear all allowed uploads previously set with AddUploadsFromSubdirectory
 	void ClearUploads(void);
 
 	/// \brief Returns how many files are available for upload
 	/// \return How many files are available for upload
 	unsigned GetNumberOfFilesForUpload(void) const;
-
-	/// \brief Set if we should compress outgoing sends or not.
-	/// \details Defaults to false, because this results in a noticeable freeze on large requests.
-	/// You can set this to true if you only send small files though
-	/// \param[in] compress True to compress, false to not.
-	void SetCompressOutgoingSends(bool compress);
 
 	/// \brief Normally, if a remote system requests files, those files are all loaded into memory and sent immediately.
 	/// \details This function allows the files to be read in incremental chunks, saving memory
@@ -126,10 +161,11 @@ protected:
 	FileList *availableUploads;
 	PacketPriority priority;
 	char orderingChannel;
-	bool compressOutgoingSends;
 	IncrementalReadInterface *incrementalReadInterface;
 	unsigned int chunkSize;
 };
+
+} // namespace RakNet
 
 #endif
 

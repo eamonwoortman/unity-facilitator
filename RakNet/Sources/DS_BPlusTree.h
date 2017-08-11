@@ -1,8 +1,16 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 /// \file DS_BPlusTree.h
 ///
-/// This file is part of RakNet Copyright 2003 Jenkins Software LLC
-///
-/// Usage of RakNet is subject to the appropriate license agreement.
+
 
 #ifndef __B_PLUS_TREE_CPP
 #define __B_PLUS_TREE_CPP
@@ -191,7 +199,7 @@ namespace DataStructures
 			DeleteFromPageAtIndex(childIndex,root);
 			if (root->size==0)
 			{
-				pagePool.Release(root, __FILE__,__LINE__);
+				pagePool.Release(root, _FILE_AND_LINE_);
 				root=0;
 				leftmostLeaf=0;
 			}
@@ -207,7 +215,7 @@ namespace DataStructures
 			// Move the root down.
 			Page<KeyType, DataType, order> *oldRoot=root;
 			root=root->children[0];
-			pagePool.Release(oldRoot, __FILE__,__LINE__);
+			pagePool.Release(oldRoot, _FILE_AND_LINE_);
 			// memset(oldRoot,0,sizeof(root));
 		}		
 	
@@ -461,7 +469,7 @@ namespace DataStructures
 			}			
 
 			// Free the source node
-			pagePool.Release(source, __FILE__,__LINE__);
+			pagePool.Release(source, _FILE_AND_LINE_);
 			// memset(source,0,sizeof(root));
 
 			// Return underflow or not of parent.
@@ -533,7 +541,7 @@ namespace DataStructures
 		}
 		else
 		{
-			Page<KeyType, DataType, order>* newPage = pagePool.Allocate( __FILE__, __LINE__ );
+			Page<KeyType, DataType, order>* newPage = pagePool.Allocate( _FILE_AND_LINE_ );
 			newPage->isLeaf=cur->isLeaf;
 			if (cur->isLeaf)
 			{
@@ -594,8 +602,8 @@ namespace DataStructures
 					// the first key is the middle key.  Remove it from the page and push it to the parent
 					returnAction->action=ReturnAction::PUSH_KEY_TO_PARENT;
 					returnAction->key1=newPage->keys[0];
-					for (int i=0; i < destIndex-1; i++)
-						newPage->keys[i]=newPage->keys[i+1];
+					for (int j=0; j < destIndex-1; j++)
+						newPage->keys[j]=newPage->keys[j+1];
 					
 				}
 				cur->size=order/2;
@@ -622,8 +630,8 @@ namespace DataStructures
 					// the first key is the middle key.  Remove it from the page and push it to the parent
 					returnAction->action=ReturnAction::PUSH_KEY_TO_PARENT;
 					returnAction->key1=newPage->keys[0];
-					for (int i=0; i < destIndex-1; i++)
-						newPage->keys[i]=newPage->keys[i+1];
+					for (int j=0; j < destIndex-1; j++)
+						newPage->keys[j]=newPage->keys[j+1];
 				}
 				cur->size=(order+1)/2-1;
 				if (cur->size)
@@ -824,7 +832,7 @@ namespace DataStructures
 		if (root==0)
 		{
 			// Allocate root and make root a leaf
-			root = pagePool.Allocate( __FILE__, __LINE__ );
+			root = pagePool.Allocate( _FILE_AND_LINE_ );
 			root->isLeaf=true;
 			leftmostLeaf=root;
 			root->size=1;
@@ -854,7 +862,7 @@ namespace DataStructures
 				else
 					 newKey = newPage->keys[0];
 				// propagate the root
-				Page<KeyType, DataType, order>* newRoot = pagePool.Allocate( __FILE__, __LINE__ );
+				Page<KeyType, DataType, order>* newRoot = pagePool.Allocate( _FILE_AND_LINE_ );
 				newRoot->isLeaf=false;
 				newRoot->size=1;
 				newRoot->keys[0]=newKey;
@@ -882,12 +890,12 @@ namespace DataStructures
 			leftmostLeaf=0;
 			root=0;
 		}
-		pagePool.Clear(__FILE__, __LINE__);
+		pagePool.Clear(_FILE_AND_LINE_);
 	}
 	template<class KeyType, class DataType, int order>
 		unsigned BPlusTree<KeyType, DataType, order>::Size(void) const
 	{
-		int count=0;
+		unsigned int count=0;
 		DataStructures::Page<KeyType, DataType, order> *cur = GetListHead();
 		while (cur)
 		{
@@ -940,16 +948,16 @@ namespace DataStructures
 		DataStructures::Queue<DataStructures::Page<KeyType, DataType, order> *> queue;
 		DataStructures::Page<KeyType, DataType, order> *ptr;
 		int i;
-		queue.Push(root, __FILE__, __LINE__ );
+		queue.Push(root, _FILE_AND_LINE_ );
 		while (queue.Size())
 		{
 			ptr=queue.Pop();
 			if (ptr->isLeaf==false)
 			{
 				for (i=0; i < ptr->size+1; i++)
-					queue.Push(ptr->children[i], __FILE__, __LINE__ );
+					queue.Push(ptr->children[i], _FILE_AND_LINE_ );
 			}			
-			pagePool.Release(ptr, __FILE__,__LINE__);
+			pagePool.Release(ptr, _FILE_AND_LINE_);
 		//	memset(ptr,0,sizeof(root));
 		};
 	}
@@ -1024,8 +1032,8 @@ namespace DataStructures
 	void BPlusTree<KeyType, DataType, order>::PrintGraph(void)
 	{
 		DataStructures::Queue<DataStructures::Page<KeyType, DataType, order> *> queue;
-		queue.Push(root,__FILE__,__LINE__);
-		queue.Push(0,__FILE__,__LINE__);
+		queue.Push(root,_FILE_AND_LINE_);
+		queue.Push(0,_FILE_AND_LINE_);
 		DataStructures::Page<KeyType, DataType, order> *ptr;
 		int i,j;
 		if (root)
@@ -1052,9 +1060,9 @@ namespace DataStructures
 					for (j=0; j < ptr->children[i]->size; j++)
 						RAKNET_DEBUG_PRINTF("%i ", ptr->children[i]->keys[j]);
 					RAKNET_DEBUG_PRINTF(") ");
-					queue.Push(ptr->children[i],__FILE__,__LINE__);
+					queue.Push(ptr->children[i],_FILE_AND_LINE_);
 				}
-			 	queue.Push(0,__FILE__,__LINE__);
+			 	queue.Push(0,_FILE_AND_LINE_);
 				RAKNET_DEBUG_PRINTF(" -- ");
 			}
 		}
@@ -1134,13 +1142,13 @@ void main(void)
 			RakAssert(btree.Size()==haveList.Size());
 			btree.ValidateTree();
 		}
-		btree.Clear(__FILE__, __LINE__);
-		removedList.Clear(__FILE__, __LINE__);
-		haveList.Clear(__FILE__, __LINE__);
+		btree.Clear(_FILE_AND_LINE_);
+		removedList.Clear(_FILE_AND_LINE_);
+		haveList.Clear(_FILE_AND_LINE_);
 	}
 
 	RAKNET_DEBUG_PRINTF("Done. %i\n", btree.Size());
 	char ch[256];
-	fgets(ch, sizeof(ch), stdin);
+	Gets(ch, sizeof(ch));
 }
 */

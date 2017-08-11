@@ -1,9 +1,17 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 /// \file
 /// \brief This will write all incoming and outgoing network messages to the local console screen.  See derived functions for other outputs
 ///
-/// This file is part of RakNet Copyright 2003 Jenkins Software LLC
-///
-/// Usage of RakNet is subject to the appropriate license agreement.
+
 
 #include "NativeFeatureIncludes.h"
 #if _RAKNET_SUPPORT_PacketLogger==1
@@ -11,10 +19,14 @@
 #ifndef __PACKET_LOGGER_H
 #define __PACKET_LOGGER_H
 
-class RakPeerInterface;
 #include "RakNetTypes.h"
 #include "PluginInterface2.h"
 #include "Export.h"
+
+namespace RakNet
+{
+/// Forward declarations
+class RakPeerInterface;
 
 /// \defgroup PACKETLOGGER_GROUP PacketLogger
 /// \brief Print out incoming messages to a target destination
@@ -27,25 +39,28 @@ class RakPeerInterface;
 class RAK_DLL_EXPORT PacketLogger : public PluginInterface2
 {
 public:
+	// GetInstance() and DestroyInstance(instance*)
+	STATIC_FACTORY_DECLARATIONS(PacketLogger)
+
 	PacketLogger();
 	virtual ~PacketLogger();
 
 	// Translate the supplied parameters into an output line - overloaded version that takes a MessageIdentifier
 	// and translates it into a string (numeric or textual representation based on printId); this calls the
 	// second version which takes a const char* argument for the messageIdentifier
-	virtual void FormatLine(char* into, const char* dir, const char* type, unsigned int packet, unsigned int frame
+	virtual void FormatLine(char* into, const char* dir, const char* type, unsigned int reliableMessageNumber, unsigned int frame
 		, unsigned char messageIdentifier, const BitSize_t bitLen, unsigned long long time, const SystemAddress& local, const SystemAddress& remote,
 		unsigned int splitPacketId, unsigned int splitPacketIndex, unsigned int splitPacketCount, unsigned int orderingIndex);
-	virtual void FormatLine(char* into, const char* dir, const char* type, unsigned int packet, unsigned int frame
+	virtual void FormatLine(char* into, const char* dir, const char* type, unsigned int reliableMessageNumber, unsigned int frame
 		, const char* idToPrint, const BitSize_t bitLen, unsigned long long time, const SystemAddress& local, const SystemAddress& remote,
 		unsigned int splitPacketId, unsigned int splitPacketIndex, unsigned int splitPacketCount, unsigned int orderingIndex);
 
 	/// Events on low level sends and receives.  These functions may be called from different threads at the same time.
 	virtual void OnDirectSocketSend(const char *data, const BitSize_t bitsUsed, SystemAddress remoteSystemAddress);
 	virtual void OnDirectSocketReceive(const char *data, const BitSize_t bitsUsed, SystemAddress remoteSystemAddress);
-	virtual void OnReliabilityLayerPacketError(const char *errorMessage, const BitSize_t bitsUsed, SystemAddress remoteSystemAddress);
-	virtual void OnInternalPacket(InternalPacket *internalPacket, unsigned frameNumber, SystemAddress remoteSystemAddress, RakNetTime time, int isSend);
-	virtual void OnAck(unsigned int messageNumber, SystemAddress remoteSystemAddress, RakNetTime time);
+	virtual void OnReliabilityLayerNotification(const char *errorMessage, const BitSize_t bitsUsed, SystemAddress remoteSystemAddress, bool isError);
+	virtual void OnInternalPacket(InternalPacket *internalPacket, unsigned frameNumber, SystemAddress remoteSystemAddress, RakNet::TimeMS time, int isSend);
+	virtual void OnAck(unsigned int messageNumber, SystemAddress remoteSystemAddress, RakNet::TimeMS time);
 	virtual void OnPushBackPacket(const char *data, const BitSize_t bitsUsed, SystemAddress remoteSystemAddress);
 
 	/// Logs out a header for all the data
@@ -73,6 +88,8 @@ public:
 	/// Log the direct sends and receives or not. Default true
 	void SetLogDirectMessages(bool send);
 protected:
+
+	virtual bool UsesReliabilityLayer(void) const {return true;}
 	const char* IDTOString(unsigned char Id);
 	virtual void AddToLog(const char *str);
 	// Users should override this
@@ -84,6 +101,8 @@ protected:
 	char prefix[256];
 	char suffix[256];
 };
+
+} // namespace RakNet
 
 #endif
 

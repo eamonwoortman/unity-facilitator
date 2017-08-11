@@ -1,8 +1,16 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 /// \file
 ///
-/// This file is part of RakNet Copyright 2003 Jenkins Software LLC
-///
-/// Usage of RakNet is subject to the appropriate license agreement.
+
 
 
 #if defined(_MSC_VER) && _MSC_VER < 1299 // VC6 doesn't support template specialization
@@ -15,20 +23,27 @@
 #include <stdlib.h>
 
 #include "SocketIncludes.h"
+#include "RakNetDefines.h"
 
-#if defined(_XBOX) || defined(X360)
-                            
-#elif defined(_WIN32)
-#include <winsock2.h> // htonl
+
+
+#if   defined(_WIN32)
+#include "WindowsIncludes.h"
 #include <memory.h>
 #include <cmath>
 #include <float.h>
-#elif defined(_PS3) || defined(__PS3__) || defined(SN_TARGET_PS3)
-                        
+
+
+
+
 #else
 #include <arpa/inet.h>
 #include <memory.h>
+#if defined(ANDROID)
+#include <math.h>
+#else
 #include <cmath>
+#endif
 #include <float.h>
 #endif
 
@@ -37,13 +52,13 @@
 #define _copysign copysign
 #endif
 
-
-
 using namespace RakNet;
 
 #ifdef _MSC_VER
 #pragma warning( push )
 #endif
+
+STATIC_FACTORY_DEFINITIONS(BitStream,BitStream)
 
 BitStream::BitStream()
 {
@@ -51,7 +66,7 @@ BitStream::BitStream()
 	//numberOfBitsAllocated = 32 * 8;
 	numberOfBitsAllocated = BITSTREAM_STACK_ALLOCATION_SIZE * 8;
 	readOffset = 0;
-	//data = ( unsigned char* ) rakMalloc_Ex( 32, __FILE__, __LINE__ );
+	//data = ( unsigned char* ) rakMalloc_Ex( 32, _FILE_AND_LINE_ );
 	data = ( unsigned char* ) stackData;
 
 #ifdef _DEBUG	
@@ -72,7 +87,7 @@ BitStream::BitStream( const unsigned int initialBytesToAllocate )
 	}
 	else
 	{
-		data = ( unsigned char* ) rakMalloc_Ex( (size_t) initialBytesToAllocate, __FILE__, __LINE__ );
+		data = ( unsigned char* ) rakMalloc_Ex( (size_t) initialBytesToAllocate, _FILE_AND_LINE_ );
 		numberOfBitsAllocated = initialBytesToAllocate << 3;
 	}
 #ifdef _DEBUG
@@ -100,7 +115,7 @@ BitStream::BitStream( unsigned char* _data, const unsigned int lengthInBytes, bo
 			}
 			else
 			{
-				data = ( unsigned char* ) rakMalloc_Ex( (size_t) lengthInBytes, __FILE__, __LINE__ );
+				data = ( unsigned char* ) rakMalloc_Ex( (size_t) lengthInBytes, _FILE_AND_LINE_ );
 			}
 #ifdef _DEBUG
 			RakAssert( data );
@@ -126,7 +141,7 @@ void BitStream::SetNumberOfBitsAllocated( const BitSize_t lengthInBits )
 BitStream::~BitStream()
 {
 	if ( copyData && numberOfBitsAllocated > (BITSTREAM_STACK_ALLOCATION_SIZE << 3))
-		rakFree_Ex( data , __FILE__, __LINE__ );  // Use realloc and free so we are more efficient than delete and new for resizing
+		rakFree_Ex( data , _FILE_AND_LINE_ );  // Use realloc and free so we are more efficient than delete and new for resizing
 }
 
 void BitStream::Reset( void )
@@ -147,7 +162,7 @@ void BitStream::Reset( void )
 	//numberOfBitsAllocated=8;
 	readOffset = 0;
 
-	//data=(unsigned char*)rakMalloc_Ex(1, __FILE__, __LINE__);
+	//data=(unsigned char*)rakMalloc_Ex(1, _FILE_AND_LINE_);
 	// if (numberOfBitsAllocated>0)
 	//  memset(data, 0, BITS_TO_BYTES(numberOfBitsAllocated));
 }
@@ -173,7 +188,7 @@ void BitStream::Write( const char* inputByteArray, const unsigned int numberOfBy
 }
 void BitStream::Write( BitStream *bitStream)
 {
-	Write(bitStream, bitStream->GetNumberOfBitsUsed());
+	Write(bitStream, bitStream->GetNumberOfBitsUsed()-bitStream->GetReadOffset());
 }
 void BitStream::Write( BitStream *bitStream, BitSize_t numberOfBits )
 {
@@ -393,7 +408,7 @@ bool BitStream::ReadAlignedBytesSafeAlloc( char **outByteArray, int &inputLength
 }
 bool BitStream::ReadAlignedBytesSafeAlloc( char ** outByteArray, unsigned int &inputLength, const unsigned int maxBytesToRead )
 {
-	rakFree_Ex(*outByteArray, __FILE__, __LINE__ );
+	rakFree_Ex(*outByteArray, _FILE_AND_LINE_ );
 	*outByteArray=0;
 	if (ReadCompressed(inputLength)==false)
 		return false;
@@ -401,7 +416,7 @@ bool BitStream::ReadAlignedBytesSafeAlloc( char ** outByteArray, unsigned int &i
 		inputLength=maxBytesToRead;
 	if (inputLength==0)
 		return true;
-	*outByteArray = (char*) rakMalloc_Ex( (size_t) inputLength, __FILE__, __LINE__ );
+	*outByteArray = (char*) rakMalloc_Ex( (size_t) inputLength, _FILE_AND_LINE_ );
 	return ReadAlignedBytes((unsigned char*) *outByteArray, inputLength);
 }
 
@@ -652,7 +667,7 @@ bool BitStream::ReadCompressed( unsigned char* inOutByteArray,
 	if ( readOffset + 1 > numberOfBitsUsed )
 		return false;
 
-	bool b;
+	bool b=false;
 
 	if ( Read( b ) == false )
 		return false;
@@ -701,7 +716,8 @@ void BitStream::AddBitsAndReallocate( const BitSize_t numberOfBitsToWrite )
 		{
 			if (amountToAllocate > BITSTREAM_STACK_ALLOCATION_SIZE)
 			{
-				data = ( unsigned char* ) rakMalloc_Ex( (size_t) amountToAllocate, __FILE__, __LINE__ );
+				data = ( unsigned char* ) rakMalloc_Ex( (size_t) amountToAllocate, _FILE_AND_LINE_ );
+				RakAssert(data);
 
 				// need to copy the stack data over to our new memory area too
 				memcpy ((void *)data, (void *)stackData, (size_t) BITS_TO_BYTES( numberOfBitsAllocated )); 
@@ -709,7 +725,7 @@ void BitStream::AddBitsAndReallocate( const BitSize_t numberOfBitsToWrite )
 		}
 		else
 		{
-			data = ( unsigned char* ) rakRealloc_Ex( data, (size_t) amountToAllocate, __FILE__, __LINE__ );
+			data = ( unsigned char* ) rakRealloc_Ex( data, (size_t) amountToAllocate, _FILE_AND_LINE_ );
 		}
 
 #ifdef _DEBUG
@@ -737,6 +753,86 @@ void BitStream::PadWithZeroToByteLength( unsigned int bytes )
 	}
 }
 
+/* 
+// Julius Goryavsky's version of Harley's algorithm.
+// 17 elementary ops plus an indexed load, if the machine
+// has "and not."
+
+int nlz10b(unsigned x) {
+
+   static char table[64] =
+     {32,20,19, u, u,18, u, 7,  10,17, u, u,14, u, 6, u,
+       u, 9, u,16, u, u, 1,26,   u,13, u, u,24, 5, u, u,
+       u,21, u, 8,11, u,15, u,   u, u, u, 2,27, 0,25, u,
+      22, u,12, u, u, 3,28, u,  23, u, 4,29, u, u,30,31};
+
+   x = x | (x >> 1);    // Propagate leftmost
+   x = x | (x >> 2);    // 1-bit to the right.
+   x = x | (x >> 4);
+   x = x | (x >> 8);
+   x = x & ~(x >> 16);
+   x = x*0xFD7049FF;    // Activate this line or the following 3.
+// x = (x << 9) - x;    // Multiply by 511.
+// x = (x << 11) - x;   // Multiply by 2047.
+// x = (x << 14) - x;   // Multiply by 16383.
+   return table[x >> 26];
+}
+*/
+int BitStream::NumberOfLeadingZeroes( int8_t x ) {return NumberOfLeadingZeroes((uint8_t)x);}
+int BitStream::NumberOfLeadingZeroes( uint8_t x )
+{
+	uint8_t y;
+	int n;
+
+	n = 8;
+	y = x >> 4;  if (y != 0) {n = n - 4;  x = y;}
+	y = x >> 2;  if (y != 0) {n = n - 2;  x = y;}
+	y = x >> 1;  if (y != 0) return n - 2;
+	return (int)(n - x);
+}
+int BitStream::NumberOfLeadingZeroes( int16_t x ) {return NumberOfLeadingZeroes((uint16_t)x);}
+int BitStream::NumberOfLeadingZeroes( uint16_t x )
+{
+	uint16_t y;
+	int n;
+
+	n = 16;
+	y = x >> 8;  if (y != 0) {n = n - 8;  x = y;}
+	y = x >> 4;  if (y != 0) {n = n - 4;  x = y;}
+	y = x >> 2;  if (y != 0) {n = n - 2;  x = y;}
+	y = x >> 1;  if (y != 0) return n - 2;
+	return (int)(n - x);
+}
+int BitStream::NumberOfLeadingZeroes( int32_t x ) {return NumberOfLeadingZeroes((uint32_t)x);}
+int BitStream::NumberOfLeadingZeroes( uint32_t x )
+{
+	uint32_t y;
+	int n;
+
+	n = 32;
+	y = x >>16;  if (y != 0) {n = n -16;  x = y;}
+	y = x >> 8;  if (y != 0) {n = n - 8;  x = y;}
+	y = x >> 4;  if (y != 0) {n = n - 4;  x = y;}
+	y = x >> 2;  if (y != 0) {n = n - 2;  x = y;}
+	y = x >> 1;  if (y != 0) return n - 2;
+	return (int)(n - x);
+}
+int BitStream::NumberOfLeadingZeroes( int64_t x ) {return NumberOfLeadingZeroes((uint64_t)x);}
+int BitStream::NumberOfLeadingZeroes( uint64_t x )
+{
+	uint64_t y;
+	int n;
+
+	n = 64;
+	y = x >>32;  if (y != 0) {n = n -32;  x = y;}
+	y = x >>16;  if (y != 0) {n = n -16;  x = y;}
+	y = x >> 8;  if (y != 0) {n = n - 8;  x = y;}
+	y = x >> 4;  if (y != 0) {n = n - 4;  x = y;}
+	y = x >> 2;  if (y != 0) {n = n - 2;  x = y;}
+	y = x >> 1;  if (y != 0) return n - 2;
+	return (int)(n - x);
+}
+
 // Should hit if reads didn't match writes
 void BitStream::AssertStreamEmpty( void )
 {
@@ -751,7 +847,7 @@ void BitStream::PrintBits( char *out ) const
 	}
 
 	unsigned int strIndex=0;
-	for ( BitSize_t counter = 0; counter < BITS_TO_BYTES( numberOfBitsUsed ); counter++ )
+	for ( BitSize_t counter = 0; counter < BITS_TO_BYTES( numberOfBitsUsed ) && strIndex < 2000 ; counter++ )
 	{
 		BitSize_t stop;
 
@@ -782,7 +878,7 @@ void BitStream::PrintBits( void ) const
 {
 	char out[2048];
 	PrintBits(out);
-	RAKNET_DEBUG_PRINTF(out);
+	RAKNET_DEBUG_PRINTF("%s", out);
 }
 void BitStream::PrintHex( char *out ) const
 {
@@ -796,7 +892,7 @@ void BitStream::PrintHex( void ) const
 {
 	char out[2048];
 	PrintHex(out);
-	RAKNET_DEBUG_PRINTF(out);
+	RAKNET_DEBUG_PRINTF("%s", out);
 }
 
 // Exposes the data for you to look at, like PrintBits does.
@@ -807,7 +903,7 @@ BitSize_t BitStream::CopyData( unsigned char** _data ) const
 	RakAssert( numberOfBitsUsed > 0 );
 #endif
 
-	*_data = (unsigned char*) rakMalloc_Ex( (size_t) BITS_TO_BYTES( numberOfBitsUsed ), __FILE__, __LINE__ );
+	*_data = (unsigned char*) rakMalloc_Ex( (size_t) BITS_TO_BYTES( numberOfBitsUsed ), _FILE_AND_LINE_ );
 	memcpy( *_data, data, sizeof(unsigned char) * (size_t) ( BITS_TO_BYTES( numberOfBitsUsed ) ) );
 	return numberOfBitsUsed;
 }
@@ -882,7 +978,7 @@ void BitStream::AssertCopyData( void )
 
 		if ( numberOfBitsAllocated > 0 )
 		{
-			unsigned char * newdata = ( unsigned char* ) rakMalloc_Ex( (size_t) BITS_TO_BYTES( numberOfBitsAllocated ), __FILE__, __LINE__ );
+			unsigned char * newdata = ( unsigned char* ) rakMalloc_Ex( (size_t) BITS_TO_BYTES( numberOfBitsAllocated ), _FILE_AND_LINE_ );
 #ifdef _DEBUG
 
 			RakAssert( data );
@@ -898,12 +994,14 @@ void BitStream::AssertCopyData( void )
 }
 bool BitStream::IsNetworkOrderInternal(void)
 {
-#if defined(_PS3) || defined(__PS3__) || defined(SN_TARGET_PS3)
-             
-#else
-	static const bool isNetworkOrder=(htonl(12345) == 12345);
-	return isNetworkOrder;
-#endif
+
+
+
+
+
+	static unsigned long htonlValue = htonl(12345);
+	return htonlValue == 12345;
+
 }
 void BitStream::ReverseBytes(unsigned char *inByteArray, unsigned char *inOutByteArray, const unsigned int length)
 {

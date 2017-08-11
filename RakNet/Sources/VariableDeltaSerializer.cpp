@@ -1,3 +1,13 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 #include "VariableDeltaSerializer.h"
 
 using namespace RakNet;
@@ -141,7 +151,7 @@ void VariableDeltaSerializer::RemoveRemoteSystemVariableHistory(RakNetGUID guid)
 	}
 }
 
-int VariableDeltaSerializer::UpdatedVariablesListPtrComp( const uint32_t &key, ChangedVariablesList* const &data )
+int RakNet::VariableDeltaSerializer::UpdatedVariablesListPtrComp( const uint32_t &key, ChangedVariablesList* const &data )
 {
 	if (key<data->sendReceipt)
 		return -1;
@@ -210,7 +220,7 @@ void VariableDeltaSerializer::RemoveRemoteSystemVariableHistory(void)
 
 		delete remoteSystemVariableHistoryList[idx];
 	}
-	remoteSystemVariableHistoryList.Clear(false,__FILE__,__LINE__);
+	remoteSystemVariableHistoryList.Clear(false,_FILE_AND_LINE_);
 }
 
 VariableDeltaSerializer::RemoteSystemVariableHistory* VariableDeltaSerializer::GetRemoteSystemVariableHistory(RakNetGUID guid)
@@ -221,19 +231,19 @@ VariableDeltaSerializer::RemoteSystemVariableHistory* VariableDeltaSerializer::G
 
 VariableDeltaSerializer::ChangedVariablesList *VariableDeltaSerializer::AllocChangedVariablesList(void)
 {
-	VariableDeltaSerializer::ChangedVariablesList *p = updatedVariablesMemoryPool.Allocate(__FILE__,__LINE__);
+	VariableDeltaSerializer::ChangedVariablesList *p = updatedVariablesMemoryPool.Allocate(_FILE_AND_LINE_);
 	p->bitWriteIndex=0;
 	p->bitField[0]=0;
 	return p;
 }
 void VariableDeltaSerializer::FreeChangedVariablesList(ChangedVariablesList *changedVariables)
 {
-	updatedVariablesMemoryPool.Release(changedVariables, __FILE__,__LINE__);
+	updatedVariablesMemoryPool.Release(changedVariables, _FILE_AND_LINE_);
 }
 void VariableDeltaSerializer::StoreChangedVariablesList(RemoteSystemVariableHistory *variableHistory, ChangedVariablesList *changedVariables, uint32_t sendReceipt)
 {
 	changedVariables->sendReceipt=sendReceipt;
-	variableHistory->updatedVariablesHistory.Insert(changedVariables->sendReceipt,changedVariables,true,__FILE__,__LINE__);
+	variableHistory->updatedVariablesHistory.Insert(changedVariables->sendReceipt,changedVariables,true,_FILE_AND_LINE_);
 }
 
 VariableDeltaSerializer::RemoteSystemVariableHistory *VariableDeltaSerializer::StartVariableHistoryWrite(RakNetGUID guid)
@@ -245,7 +255,7 @@ VariableDeltaSerializer::RemoteSystemVariableHistory *VariableDeltaSerializer::S
 	{
 		variableHistory = new RemoteSystemVariableHistory;
 		variableHistory->guid=guid;
-		remoteSystemVariableHistoryList.Push(variableHistory,__FILE__,__LINE__);
+		remoteSystemVariableHistoryList.Push(variableHistory,_FILE_AND_LINE_);
 	}
 	else
 	{

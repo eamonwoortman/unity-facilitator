@@ -1,9 +1,26 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 #include "SendToThread.h"
 #ifdef USE_THREADED_SEND
 #include "RakThread.h"
-#include "CCRakNetUDT.h"
 #include "InternalPacket.h"
 #include "GetTime.h"
+
+#if USE_SLIDING_WINDOW_CONGESTION_CONTROL!=1
+#include "CCRakNetUDT.h"
+#else
+#include "CCRakNetSlidingWindow.h"
+#endif
+
+using namespace RakNet;
 
 int SendToThread::refCount=0;
 DataStructures::ThreadsafeAllocatingQueue<SendToThread::SendToThreadBlock> SendToThread::objectQueue;
@@ -13,9 +30,9 @@ SendToThread::SendToThreadBlock* SendToWorkerThread(SendToThread::SendToThreadBl
 {
 	(void) perThreadData;
 	*returnOutput=false;
-	RakNetTimeUS *mostRecentTime=(RakNetTimeUS *)input->data;
-	*mostRecentTime=RakNet::GetTimeUS();
-	SocketLayer::Instance()->SendTo(input->s, input->data, input->dataWriteOffset, input->binaryAddress, input->port, input->remotePortRakNetWasStartedOn_PS3);
+//	RakNet::TimeUS *mostRecentTime=(RakNet::TimeUS *)input->data;
+//	*mostRecentTime=RakNet::GetTimeUS();
+	SocketLayer::SendTo(input->s, input->data, input->dataWriteOffset, input->systemAddress, _FILE_AND_LINE_);
 	SendToThread::objectQueue.Push(input);
 	return 0;
 }
@@ -50,13 +67,17 @@ void SendToThread::Deref(void)
 				objectQueue.Push(info);
 			}
 			threadPool.ClearInput();
-			objectQueue.Clear(__FILE__, __LINE__);
+			objectQueue.Clear(_FILE_AND_LINE_);
 		}
 	}
 }
 SendToThread::SendToThreadBlock* SendToThread::AllocateBlock(void)
 {
-	return objectQueue.PopOrAllocate();
+	SendToThread::SendToThreadBlock *b;
+	b=objectQueue.Pop();
+	if (b==0)
+		b=objectQueue.Allocate(_FILE_AND_LINE_);
+	return b;
 }
 void SendToThread::ProcessBlock(SendToThread::SendToThreadBlock* threadedSend)
 {

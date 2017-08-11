@@ -1,9 +1,17 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 /// \file
 /// \brief \b [Internal] Passes queued data between threads using a circular buffer with read and write pointers
 ///
-/// This file is part of RakNet Copyright 2003 Jenkins Software LLC
-///
-/// Usage of RakNet is subject to the appropriate license agreement.
+
 
 
 #ifndef __SINGLE_PRODUCER_CONSUMER_H
@@ -92,9 +100,9 @@ namespace DataStructures
 		SingleProducerConsumer<SingleProducerConsumerType>::SingleProducerConsumer()
 	{
 		// Preallocate
-		readPointer = RakNet::OP_NEW<DataPlusPtr>( __FILE__, __LINE__ );
+		readPointer = RakNet::OP_NEW<DataPlusPtr>( _FILE_AND_LINE_ );
 		writePointer=readPointer;
-		readPointer->next = RakNet::OP_NEW<DataPlusPtr>( __FILE__, __LINE__ );
+		readPointer->next = RakNet::OP_NEW<DataPlusPtr>( _FILE_AND_LINE_ );
 		int listSize;
 #ifdef _DEBUG
 		RakAssert(MINIMUM_LIST_SIZE>=3);
@@ -102,7 +110,7 @@ namespace DataStructures
 		for (listSize=2; listSize < MINIMUM_LIST_SIZE; listSize++)
 		{
 			readPointer=readPointer->next;
-			readPointer->next = RakNet::OP_NEW<DataPlusPtr>( __FILE__, __LINE__ );
+			readPointer->next = RakNet::OP_NEW<DataPlusPtr>( _FILE_AND_LINE_ );
 		}
 		readPointer->next->next=writePointer; // last to next = start
 		readPointer=writePointer;
@@ -119,10 +127,10 @@ namespace DataStructures
 		while (readPointer!=writeAheadPointer)
 		{
 			next=readPointer->next;
-			RakNet::OP_DELETE((char*) readPointer, __FILE__, __LINE__);
+			RakNet::OP_DELETE((char*) readPointer, _FILE_AND_LINE_);
 			readPointer=next;
 		}
-		RakNet::OP_DELETE((char*) readPointer, __FILE__, __LINE__);
+		RakNet::OP_DELETE((char*) readPointer, _FILE_AND_LINE_);
 	}
 
 	template <class SingleProducerConsumerType>
@@ -132,7 +140,7 @@ namespace DataStructures
 			writeAheadPointer->next->readyToRead==true)
 		{
 			volatile DataPlusPtr *originalNext=writeAheadPointer->next;
-			writeAheadPointer->next=RakNet::OP_NEW<DataPlusPtr>(__FILE__, __LINE__);
+			writeAheadPointer->next=RakNet::OP_NEW<DataPlusPtr>(_FILE_AND_LINE_);
 			RakAssert(writeAheadPointer->next);
 			writeAheadPointer->next->next=originalNext;
 		}
@@ -225,7 +233,7 @@ namespace DataStructures
 #ifdef _DEBUG
 			RakAssert(writePointer!=readPointer);
 #endif
-			RakNet::OP_DELETE((char*) writePointer, __FILE__, __LINE__);
+			RakNet::OP_DELETE((char*) writePointer, _FILE_AND_LINE_);
 			writePointer=next;
 		}
 

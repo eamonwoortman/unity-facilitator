@@ -1,3 +1,13 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 #include "NativeFeatureIncludes.h"
 #if _RAKNET_SUPPORT_RakNetCommandParser==1
 
@@ -14,9 +24,13 @@
 #pragma warning( push )
 #endif
 
+using namespace RakNet;
+
+STATIC_FACTORY_DEFINITIONS(RakNetCommandParser,RakNetCommandParser);
+
 RakNetCommandParser::RakNetCommandParser()
 {
-	RegisterCommand(4, "Startup","( unsigned short maxConnections, int _threadSleepTimer, unsigned short localPort, const char *forceHostAddress );");
+	RegisterCommand(4, "Startup","( unsigned int maxConnections, unsigned short localPort, const char *forceHostAddress );");
 	RegisterCommand(0,"InitializeSecurity","();");
 	RegisterCommand(0,"DisableSecurity","( void );");
 	RegisterCommand(1,"AddToSecurityExceptionList","( const char *ip );");
@@ -28,25 +42,25 @@ RakNetCommandParser::RakNetCommandParser()
 	RegisterCommand(2,"Disconnect","( unsigned int blockDuration, unsigned char orderingChannel=0 );");
 	RegisterCommand(0,"IsActive","( void ) const;");
 	RegisterCommand(0,"GetConnectionList","() const;");
-	RegisterCommand(4,"CloseConnection","( const SystemAddress target, bool sendDisconnectionNotification, unsigned char orderingChannel=0 );");
+	RegisterCommand(3,"CloseConnection","( const SystemAddress target, bool sendDisconnectionNotification, unsigned char orderingChannel=0 );");
 	RegisterCommand(2,"IsConnected","( );");
-	RegisterCommand(2,"GetIndexFromSystemAddress","( const SystemAddress systemAddress );");
-	RegisterCommand(1,"GetSystemAddressFromIndex","( int index );");
-	RegisterCommand(2,"AddToBanList","( const char *IP, RakNetTime milliseconds=0 );");
+	RegisterCommand(1,"GetIndexFromSystemAddress","( const SystemAddress systemAddress );");
+	RegisterCommand(1,"GetSystemAddressFromIndex","( unsigned int index );");
+	RegisterCommand(2,"AddToBanList","( const char *IP, RakNet::TimeMS milliseconds=0 );");
 	RegisterCommand(1,"RemoveFromBanList","( const char *IP );");
 	RegisterCommand(0,"ClearBanList","( void );");
 	RegisterCommand(1,"IsBanned","( const char *IP );");
-	RegisterCommand(2,"Ping1","( const SystemAddress target );");
+	RegisterCommand(1,"Ping1","( const SystemAddress target );");
 	RegisterCommand(3,"Ping2","( const char* host, unsigned short remotePort, bool onlyReplyOnAcceptingConnections );");
-	RegisterCommand(2,"GetAveragePing","( const SystemAddress systemAddress );");
-	RegisterCommand(2,"GetLastPing","( const SystemAddress systemAddress ) const;");
-	RegisterCommand(2,"GetLowestPing","( const SystemAddress systemAddress ) const;");
+	RegisterCommand(1,"GetAveragePing","( const SystemAddress systemAddress );");
+	RegisterCommand(1,"GetLastPing","( const SystemAddress systemAddress ) const;");
+	RegisterCommand(1,"GetLowestPing","( const SystemAddress systemAddress ) const;");
 	RegisterCommand(1,"SetOccasionalPing","( bool doPing );");
 	RegisterCommand(2,"SetOfflinePingResponse","( const char *data, const unsigned int length );");
 	RegisterCommand(0,"GetInternalID","( void ) const;");
-	RegisterCommand(2,"GetExternalID","( const SystemAddress target ) const;");
-	RegisterCommand(3,"SetTimeoutTime","( RakNetTime timeMS, const SystemAddress target );");
-	RegisterCommand(1,"SetMTUSize","( int size );");
+	RegisterCommand(1,"GetExternalID","( const SystemAddress target ) const;");
+	RegisterCommand(2,"SetTimeoutTime","( RakNet::TimeMS timeMS, const SystemAddress target );");
+//	RegisterCommand(1,"SetMTUSize","( int size );");
 	RegisterCommand(0,"GetMTUSize","( void ) const;");
 	RegisterCommand(0,"GetNumberOfAddresses","( void );");
 	RegisterCommand(1,"GetLocalIP","( unsigned int index );");
@@ -54,17 +68,16 @@ RakNetCommandParser::RakNetCommandParser()
 	RegisterCommand(4,"AdvertiseSystem","( const char *host, unsigned short remotePort, const char *data, int dataLength );");
 	RegisterCommand(2,"SetIncomingPassword","( const char* passwordData, int passwordDataLength );");
 	RegisterCommand(0,"GetIncomingPassword","( void );");
-	RegisterCommand(3,"ApplyNetworkSimulator","( float packetloss, unsigned short minExtraPing, unsigned short extraPingVariance);");
 	RegisterCommand(0,"IsNetworkSimulatorActive","( void );");
 }
 RakNetCommandParser::~RakNetCommandParser()
 {
 }
-void RakNetCommandParser::SetRakPeerInterface(RakPeerInterface *rakPeer)
+void RakNetCommandParser::SetRakPeerInterface(RakNet::RakPeerInterface *rakPeer)
 {
 	peer=rakPeer;
 }
-bool RakNetCommandParser::OnCommand(const char *command, unsigned numParameters, char **parameterList, TransportInterface *transport, SystemAddress systemAddress, const char *originalString)
+bool RakNetCommandParser::OnCommand(const char *command, unsigned numParameters, char **parameterList, TransportInterface *transport, const SystemAddress &systemAddress, const char *originalString)
 {
 	(void) originalString;
 	(void) numParameters;
@@ -74,13 +87,12 @@ bool RakNetCommandParser::OnCommand(const char *command, unsigned numParameters,
 
 	if (strcmp(command, "Startup")==0)
 	{
-		SocketDescriptor socketDescriptor((unsigned short)atoi(parameterList[1]), parameterList[3]);
-		ReturnResult(peer->Startup((unsigned short)atoi(parameterList[0]), atoi(parameterList[2]), &socketDescriptor, 1), command, transport, systemAddress);
+		RakNet::SocketDescriptor socketDescriptor((unsigned short)atoi(parameterList[1]), parameterList[2]);
+		ReturnResult(peer->Startup((unsigned short)atoi(parameterList[0]), &socketDescriptor, 1), command, transport, systemAddress);
 	}
 	else if (strcmp(command, "InitializeSecurity")==0)
 	{
-		peer->InitializeSecurity(0,0,0,0);
-		ReturnResult(command, transport, systemAddress);
+		ReturnResult(peer->InitializeSecurity(parameterList[0],parameterList[1]), command, transport, systemAddress);
 	}
 	else if (strcmp(command, "DisableSecurity")==0)
 	{
@@ -108,11 +120,11 @@ bool RakNetCommandParser::OnCommand(const char *command, unsigned numParameters,
 	}
 	else if (strcmp(command, "GetMaximumIncomingConnections")==0)
 	{
-		ReturnResult(peer->GetMaximumIncomingConnections(), command, transport, systemAddress);
+		ReturnResult((int) peer->GetMaximumIncomingConnections(), command, transport, systemAddress);
 	}
 	else if (strcmp(command, "Connect")==0)
 	{
-		ReturnResult(peer->Connect(parameterList[0], (unsigned short)atoi(parameterList[1]),parameterList[2],atoi(parameterList[3])), command, transport, systemAddress);
+		ReturnResult(peer->Connect(parameterList[0], (unsigned short)atoi(parameterList[1]),parameterList[2],atoi(parameterList[3]))==RakNet::CONNECTION_ATTEMPT_STARTED, command, transport, systemAddress);
 	}
 	else if (strcmp(command, "Disconnect")==0)
 	{
@@ -140,8 +152,8 @@ bool RakNetCommandParser::OnCommand(const char *command, unsigned numParameters,
 				for (i=0; i < count; i++)
 				{
 					char str1[64];
-					remoteSystems[i].ToString(false, str1);
-					transport->Send(systemAddress, "%i %s %i:%i\r\n", i, str1, remoteSystems[i].binaryAddress, remoteSystems[i].port);
+					remoteSystems[i].ToString(true, str1);
+					transport->Send(systemAddress, "%i %s\r\n", i, str1);
 				}
 			}
 		}
@@ -150,16 +162,16 @@ bool RakNetCommandParser::OnCommand(const char *command, unsigned numParameters,
 	}
 	else if (strcmp(command, "CloseConnection")==0)
 	{
-		peer->CloseConnection(IntegersToSystemAddress(atoi(parameterList[0]), atoi(parameterList[1])),atoi(parameterList[2])!=0,(unsigned char)atoi(parameterList[3]));
+		peer->CloseConnection(SystemAddress(parameterList[0]), atoi(parameterList[1])!=0,(unsigned char)atoi(parameterList[2]));
 		ReturnResult(command, transport, systemAddress);
 	}
-	else if (strcmp(command, "IsConnected")==0)
+	else if (strcmp(command, "GetConnectionState")==0)
 	{
-		ReturnResult(peer->IsConnected(IntegersToSystemAddress(atoi(parameterList[0]), atoi(parameterList[1]))), command, transport, systemAddress);
+		ReturnResult((int) peer->GetConnectionState(SystemAddress(parameterList[0])), command, transport, systemAddress);
 	}
 	else if (strcmp(command, "GetIndexFromSystemAddress")==0)
 	{
-		ReturnResult(peer->GetIndexFromSystemAddress(IntegersToSystemAddress(atoi(parameterList[0]), atoi(parameterList[1]))), command, transport, systemAddress);
+		ReturnResult(peer->GetIndexFromSystemAddress(SystemAddress(parameterList[0])), command, transport, systemAddress);
 	}
 	else if (strcmp(command, "GetSystemAddressFromIndex")==0)
 	{
@@ -186,7 +198,7 @@ bool RakNetCommandParser::OnCommand(const char *command, unsigned numParameters,
 	}
 	else if (strcmp(command, "Ping1")==0)
 	{
-		peer->Ping(IntegersToSystemAddress(atoi(parameterList[0]), atoi(parameterList[1])));
+		peer->Ping(SystemAddress(parameterList[0]));
 		ReturnResult(command, transport, systemAddress);
 	}
 	else if (strcmp(command, "Ping2")==0)
@@ -196,15 +208,15 @@ bool RakNetCommandParser::OnCommand(const char *command, unsigned numParameters,
 	}
 	else if (strcmp(command, "GetAveragePing")==0)
 	{
-		ReturnResult(peer->GetAveragePing(IntegersToSystemAddress(atoi(parameterList[0]), atoi(parameterList[1]))), command, transport, systemAddress);
+		ReturnResult(peer->GetAveragePing(SystemAddress(parameterList[0])), command, transport, systemAddress);
 	}
 	else if (strcmp(command, "GetLastPing")==0)
 	{
-		ReturnResult(peer->GetLastPing(IntegersToSystemAddress(atoi(parameterList[0]), atoi(parameterList[1]))), command, transport, systemAddress);
+		ReturnResult(peer->GetLastPing(SystemAddress(parameterList[0])), command, transport, systemAddress);
 	}
 	else if (strcmp(command, "GetLowestPing")==0)
 	{
-		ReturnResult(peer->GetLowestPing(IntegersToSystemAddress(atoi(parameterList[0]), atoi(parameterList[1]))), command, transport, systemAddress);
+		ReturnResult(peer->GetLowestPing(SystemAddress(parameterList[0])), command, transport, systemAddress);
 	}
 	else if (strcmp(command, "SetOccasionalPing")==0)
 	{
@@ -222,11 +234,11 @@ bool RakNetCommandParser::OnCommand(const char *command, unsigned numParameters,
 	}
 	else if (strcmp(command, "GetExternalID")==0)
 	{
-		ReturnResult(peer->GetExternalID(IntegersToSystemAddress(atoi(parameterList[0]), atoi(parameterList[1]))), command, transport, systemAddress);
+		ReturnResult(peer->GetExternalID(SystemAddress(parameterList[0])), command, transport, systemAddress);
 	}
 	else if (strcmp(command, "SetTimeoutTime")==0)
 	{
-		peer->SetTimeoutTime(atoi(parameterList[0]), IntegersToSystemAddress(atoi(parameterList[0]), atoi(parameterList[1])));
+		peer->SetTimeoutTime(atoi(parameterList[0]), SystemAddress(parameterList[1]));
 		ReturnResult(command, transport, systemAddress);
 	}
 	/*
@@ -257,15 +269,6 @@ bool RakNetCommandParser::OnCommand(const char *command, unsigned numParameters,
 		peer->AdvertiseSystem(parameterList[0], (unsigned short) atoi(parameterList[1]),parameterList[2],atoi(parameterList[3]));
 		ReturnResult(command, transport, systemAddress);
 	}
-	else if (strcmp(command, "ApplyNetworkSimulator")==0)
-	{
-		peer->ApplyNetworkSimulator((float) atof(parameterList[0]), (unsigned short) atoi(parameterList[1]),(unsigned short) atoi(parameterList[2]));
-		ReturnResult(command, transport, systemAddress);
-	}
-	else if (strcmp(command, "IsNetworkSimulatorActive")==0)
-	{
-		ReturnResult(peer->IsNetworkSimulatorActive(), command, transport, systemAddress);
-	}
 	else if (strcmp(command, "SetIncomingPassword")==0)
 	{
 		peer->SetIncomingPassword(parameterList[0], atoi(parameterList[1]));
@@ -288,7 +291,7 @@ const char *RakNetCommandParser::GetName(void) const
 {
 	return "RakNet";
 }
-void RakNetCommandParser::SendHelp(TransportInterface *transport, SystemAddress systemAddress)
+void RakNetCommandParser::SendHelp(TransportInterface *transport, const SystemAddress &systemAddress)
 {
 	if (peer)
 	{

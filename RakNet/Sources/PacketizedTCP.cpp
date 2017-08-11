@@ -1,5 +1,15 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 #include "NativeFeatureIncludes.h"
-#if _RAKNET_SUPPORT_PacketizedTCP==1
+#if _RAKNET_SUPPORT_PacketizedTCP==1 && _RAKNET_SUPPORT_TCPInterface==1
 
 #include "PacketizedTCP.h"
 #include "NativeTypes.h"
@@ -7,7 +17,11 @@
 #include "MessageIdentifiers.h"
 #include "RakAlloca.h"
 
+using namespace RakNet;
+
 typedef uint32_t PTCPHeader;
+
+STATIC_FACTORY_DEFINITIONS(PacketizedTCP,PacketizedTCP);
 
 PacketizedTCP::PacketizedTCP()
 {
@@ -18,30 +32,16 @@ PacketizedTCP::~PacketizedTCP()
 	ClearAllConnections();
 }
 
-bool PacketizedTCP::Start(unsigned short port, unsigned short maxIncomingConnections, int threadPriority)
-{
-	bool success = TCPInterface::Start(port, maxIncomingConnections,0,threadPriority);
-	if (success)
-	{
-		unsigned int i;
-		for (i=0; i < messageHandlerList.Size(); i++)
-			messageHandlerList[i]->OnRakPeerStartup();
-	}
-	return success;
-}
-
 void PacketizedTCP::Stop(void)
 {
 	unsigned int i;
-	for (i=0; i < messageHandlerList.Size(); i++)
-		messageHandlerList[i]->OnRakPeerShutdown();
+	TCPInterface::Stop();
 	for (i=0; i < waitingPackets.Size(); i++)
 		DeallocatePacket(waitingPackets[i]);
-	TCPInterface::Stop();
 	ClearAllConnections();
 }
 
-void PacketizedTCP::Send( const char *data, unsigned length, SystemAddress systemAddress, bool broadcast )
+void PacketizedTCP::Send( const char *data, unsigned length, const SystemAddress &systemAddress, bool broadcast )
 {
 	PTCPHeader dataLength;
 	dataLength=length;
@@ -60,9 +60,9 @@ void PacketizedTCP::Send( const char *data, unsigned length, SystemAddress syste
 	lengthsArray[1]=length;
 	TCPInterface::SendList(dataArray,lengthsArray,2,systemAddress,broadcast);
 }
-bool PacketizedTCP::SendList( const char **data, const int *lengths, const int numParameters, SystemAddress systemAddress, bool broadcast )
+bool PacketizedTCP::SendList( const char **data, const unsigned int *lengths, const int numParameters, const SystemAddress &systemAddress, bool broadcast )
 {
-	if (isStarted==false)
+	if (isStarted.GetValue()==0)
 		return false;
 	if (data==0)
 		return false;
@@ -104,40 +104,28 @@ void PacketizedTCP::PushNotificationsToQueues(void)
 	sa = TCPInterface::HasNewIncomingConnection();
 	if (sa!=UNASSIGNED_SYSTEM_ADDRESS)
 	{
-		_newIncomingConnections.Push(sa, __FILE__, __LINE__ );
+		_newIncomingConnections.Push(sa, _FILE_AND_LINE_ );
 		AddToConnectionList(sa);
-		unsigned int i;
-		for (i=0; i < messageHandlerList.Size(); i++)
-			messageHandlerList[i]->OnNewConnection(sa, UNASSIGNED_RAKNET_GUID, true);
 	}
 
 	sa = TCPInterface::HasFailedConnectionAttempt();
 	if (sa!=UNASSIGNED_SYSTEM_ADDRESS)
 	{
-		_failedConnectionAttempts.Push(sa, __FILE__, __LINE__ );
-		unsigned int i;
-		for (i=0; i < messageHandlerList.Size(); i++)
-			messageHandlerList[i]->OnFailedConnectionAttempt(sa, FCAR_CONNECTION_ATTEMPT_FAILED);
+		_failedConnectionAttempts.Push(sa, _FILE_AND_LINE_ );
 	}
 
 	sa = TCPInterface::HasLostConnection();
 	if (sa!=UNASSIGNED_SYSTEM_ADDRESS)
 	{
-		_lostConnections.Push(sa, __FILE__, __LINE__ );
+		_lostConnections.Push(sa, _FILE_AND_LINE_ );
 		RemoveFromConnectionList(sa);
-		unsigned int i;
-		for (i=0; i < messageHandlerList.Size(); i++)
-			messageHandlerList[i]->OnClosedConnection(sa, UNASSIGNED_RAKNET_GUID, LCR_DISCONNECTION_NOTIFICATION);
 	}
 
 	sa = TCPInterface::HasCompletedConnectionAttempt();
 	if (sa!=UNASSIGNED_SYSTEM_ADDRESS)
 	{
-		_completedConnectionAttempts.Push(sa, __FILE__, __LINE__ );
+		_completedConnectionAttempts.Push(sa, _FILE_AND_LINE_ );
 		AddToConnectionList(sa);
-		unsigned int i;
-		for (i=0; i < messageHandlerList.Size(); i++)
-			messageHandlerList[i]->OnNewConnection(sa, UNASSIGNED_RAKNET_GUID, true);
 	}
 }
 Packet* PacketizedTCP::Receive( void )
@@ -153,7 +141,7 @@ Packet* PacketizedTCP::Receive( void )
 		return outgoingPacket;
 
 	Packet *incomingPacket;
-	incomingPacket = TCPInterface::Receive();
+	incomingPacket = TCPInterface::ReceiveInt();
 	unsigned int index;
 
 	while (incomingPacket)
@@ -165,7 +153,7 @@ Packet* PacketizedTCP::Receive( void )
 		if ((unsigned int)index==(unsigned int)-1)
 		{
 			DeallocatePacket(incomingPacket);
-			incomingPacket = TCPInterface::Receive();
+			incomingPacket = TCPInterface::ReceiveInt();
 			continue;
 		}
 
@@ -178,7 +166,7 @@ Packet* PacketizedTCP::Receive( void )
 			{
 				DataStructures::ByteQueue *bq = connections[index];
 				// Buffer data
-				bq->WriteBytes((const char*) incomingPacket->data,incomingPacket->length, __FILE__,__LINE__);
+				bq->WriteBytes((const char*) incomingPacket->data,incomingPacket->length, _FILE_AND_LINE_);
 				systemAddressFromPacket=incomingPacket->systemAddress;
 				PTCPHeader dataLength;
 
@@ -192,22 +180,22 @@ Packet* PacketizedTCP::Receive( void )
 					do 
 					{
 						bq->IncrementReadOffset(sizeof(PTCPHeader));
-						outgoingPacket = RakNet::OP_NEW<Packet>(__FILE__, __LINE__);
+						outgoingPacket = RakNet::OP_NEW<Packet>(_FILE_AND_LINE_);
 						outgoingPacket->length=dataLength;
 						outgoingPacket->bitSize=BYTES_TO_BITS(dataLength);
 						outgoingPacket->guid=UNASSIGNED_RAKNET_GUID;
 						outgoingPacket->systemAddress=systemAddressFromPacket;
 						outgoingPacket->deleteData=false; // Did not come from the network
-						outgoingPacket->data=(unsigned char*) rakMalloc_Ex(dataLength, __FILE__, __LINE__);
+						outgoingPacket->data=(unsigned char*) rakMalloc_Ex(dataLength, _FILE_AND_LINE_);
 						if (outgoingPacket->data==0)
 						{
-							notifyOutOfMemory(__FILE__, __LINE__);
-							RakNet::OP_DELETE(outgoingPacket,__FILE__,__LINE__);
+							notifyOutOfMemory(_FILE_AND_LINE_);
+							RakNet::OP_DELETE(outgoingPacket,_FILE_AND_LINE_);
 							return 0;
 						}
 						bq->ReadBytes((char*) outgoingPacket->data,dataLength,false);
 
-						waitingPackets.Push(outgoingPacket, __FILE__, __LINE__ );
+						waitingPackets.Push(outgoingPacket, _FILE_AND_LINE_ );
 
 						// Peek the header to see if a full message is waiting
 						if (bq->ReadBytes((char*) &dataLength,sizeof(PTCPHeader),true))
@@ -228,7 +216,7 @@ Packet* PacketizedTCP::Receive( void )
 					// Return ID_DOWNLOAD_PROGRESS
 					if (newWritten/65536!=oldWritten/65536)
 					{
-						outgoingPacket = RakNet::OP_NEW<Packet>(__FILE__, __LINE__);
+						outgoingPacket = RakNet::OP_NEW<Packet>(_FILE_AND_LINE_);
 						outgoingPacket->length=sizeof(MessageID) +
 							sizeof(unsigned int)*2 +
 							sizeof(unsigned int) +
@@ -237,11 +225,11 @@ Packet* PacketizedTCP::Receive( void )
 						outgoingPacket->guid=UNASSIGNED_RAKNET_GUID;
 						outgoingPacket->systemAddress=incomingPacket->systemAddress;
 						outgoingPacket->deleteData=false;
-						outgoingPacket->data=(unsigned char*) rakMalloc_Ex(outgoingPacket->length, __FILE__, __LINE__);
+						outgoingPacket->data=(unsigned char*) rakMalloc_Ex(outgoingPacket->length, _FILE_AND_LINE_);
 						if (outgoingPacket->data==0)
 						{
-							notifyOutOfMemory(__FILE__, __LINE__);
-							RakNet::OP_DELETE(outgoingPacket,__FILE__,__LINE__);
+							notifyOutOfMemory(_FILE_AND_LINE_);
+							RakNet::OP_DELETE(outgoingPacket,_FILE_AND_LINE_);
 							return 0;
 						}
 
@@ -256,7 +244,7 @@ Packet* PacketizedTCP::Receive( void )
 						bq->ReadBytes((char*) outgoingPacket->data+sizeof(MessageID)+sizeof(unsigned int)*3,oneChunkSize,true);
 						bq->DecrementReadOffset(sizeof(PTCPHeader));
 
-						waitingPackets.Push(outgoingPacket, __FILE__, __LINE__ );
+						waitingPackets.Push(outgoingPacket, _FILE_AND_LINE_ );
 					}
 				}
 
@@ -266,9 +254,9 @@ Packet* PacketizedTCP::Receive( void )
 			incomingPacket=0;
 		}
 		else
-			waitingPackets.Push(incomingPacket, __FILE__, __LINE__ );
+			waitingPackets.Push(incomingPacket, _FILE_AND_LINE_ );
 
-		incomingPacket = TCPInterface::Receive();
+		incomingPacket = TCPInterface::ReceiveInt();
 	}
 
 	return ReturnOutgoingPacket();
@@ -300,41 +288,12 @@ Packet *PacketizedTCP::ReturnOutgoingPacket(void)
 
 	return outgoingPacket;
 }
-
-void PacketizedTCP::AttachPlugin( PluginInterface2 *plugin )
-{
-	if (messageHandlerList.GetIndexOf(plugin)==MAX_UNSIGNED_LONG)
-	{
-		messageHandlerList.Insert(plugin, __FILE__, __LINE__);
-		plugin->SetPacketizedTCP(this);
-		plugin->OnAttach();
-	}
-}
-void PacketizedTCP::DetachPlugin( PluginInterface2 *plugin )
-{
-	if (plugin==0)
-		return;
-
-	unsigned int index;
-	index = messageHandlerList.GetIndexOf(plugin);
-	if (index!=MAX_UNSIGNED_LONG)
-	{
-		messageHandlerList[index]->OnDetach();
-		// Unordered list so delete from end for speed
-		messageHandlerList[index]=messageHandlerList[messageHandlerList.Size()-1];
-		messageHandlerList.RemoveFromEnd();
-		plugin->SetPacketizedTCP(0);
-	}
-}
 void PacketizedTCP::CloseConnection( SystemAddress systemAddress )
 {
 	RemoveFromConnectionList(systemAddress);
-	unsigned int i;
-	for (i=0; i < messageHandlerList.Size(); i++)
-		messageHandlerList[i]->OnClosedConnection(systemAddress, UNASSIGNED_RAKNET_GUID, LCR_CLOSED_BY_USER);
 	TCPInterface::CloseConnection(systemAddress);
 }
-void PacketizedTCP::RemoveFromConnectionList(SystemAddress sa)
+void PacketizedTCP::RemoveFromConnectionList(const SystemAddress &sa)
 {
 	if (sa==UNASSIGNED_SYSTEM_ADDRESS)
 		return;
@@ -343,22 +302,22 @@ void PacketizedTCP::RemoveFromConnectionList(SystemAddress sa)
 		unsigned int index = connections.GetIndexAtKey(sa);
 		if (index!=(unsigned int)-1)
 		{
-			RakNet::OP_DELETE(connections[index],__FILE__,__LINE__);
+			RakNet::OP_DELETE(connections[index],_FILE_AND_LINE_);
 			connections.RemoveAtIndex(index);
 		}
 	}
 }
-void PacketizedTCP::AddToConnectionList(SystemAddress sa)
+void PacketizedTCP::AddToConnectionList(const SystemAddress &sa)
 {
 	if (sa==UNASSIGNED_SYSTEM_ADDRESS)
 		return;
-	connections.SetNew(sa, RakNet::OP_NEW<DataStructures::ByteQueue>(__FILE__, __LINE__));
+	connections.SetNew(sa, RakNet::OP_NEW<DataStructures::ByteQueue>(_FILE_AND_LINE_));
 }
 void PacketizedTCP::ClearAllConnections(void)
 {
 	unsigned int i;
 	for (i=0; i < connections.Size(); i++)
-		RakNet::OP_DELETE(connections[i],__FILE__,__LINE__);
+		RakNet::OP_DELETE(connections[i],_FILE_AND_LINE_);
 	connections.Clear();
 }
 SystemAddress PacketizedTCP::HasCompletedConnectionAttempt(void)

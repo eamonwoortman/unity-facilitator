@@ -1,7 +1,20 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 #include "NativeTypes.h"
 #include "DS_List.h"
 #include "RakMemoryOverride.h"
 #include "BitStream.h"
+
+#ifndef __VARIABLE_LIST_DELTA_TRACKER
+#define __VARIABLE_LIST_DELTA_TRACKER
 
 namespace RakNet
 {
@@ -28,14 +41,14 @@ public:
 		temp.Write(varData);
 		if (nextWriteIndex>=variableList.Size())
 		{
-			variableList.Push(VariableLastValueNode(temp.GetData(),temp.GetNumberOfBytesUsed()),__FILE__,__LINE__);
+			variableList.Push(VariableLastValueNode(temp.GetData(),temp.GetNumberOfBytesUsed()),_FILE_AND_LINE_);
 			nextWriteIndex++;
 			return true; // Different because it's new
 		}
 
 		if (temp.GetNumberOfBytesUsed()!=variableList[nextWriteIndex].byteLength)
 		{
-			variableList[nextWriteIndex].lastData=(char*) rakRealloc_Ex(variableList[nextWriteIndex].lastData, temp.GetNumberOfBytesUsed(),__FILE__,__LINE__);
+			variableList[nextWriteIndex].lastData=(char*) rakRealloc_Ex(variableList[nextWriteIndex].lastData, temp.GetNumberOfBytesUsed(),_FILE_AND_LINE_);
 			variableList[nextWriteIndex].byteLength=temp.GetNumberOfBytesUsed();
 			memcpy(variableList[nextWriteIndex].lastData,temp.GetData(),temp.GetNumberOfBytesUsed());
 			nextWriteIndex++;
@@ -92,7 +105,7 @@ public:
 
 	/// Paired with a call to WriteVarToBitstream(), will read a variable if it had changed. Otherwise the values remains the same.
 	template <class VarType>
-	static bool ReadVarFromBitstream(const VarType &varData, RakNet::BitStream *bitStream)
+	static bool ReadVarFromBitstream(VarType &varData, RakNet::BitStream *bitStream)
 	{
 		bool wasWritten;
 		if (bitStream->Read(wasWritten)==false)
@@ -116,7 +129,7 @@ public:
 		VariableLastValueNode(const unsigned char *data, int _byteLength);
 		~VariableLastValueNode();
 		char *lastData;
-		int byteLength;
+		unsigned int byteLength;
 		bool isDirty;
 	};
 
@@ -129,3 +142,5 @@ protected:
 
 
 }
+
+#endif

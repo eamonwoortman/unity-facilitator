@@ -1,12 +1,20 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 /// \file
 /// \brief Contains TelnetTransport , used to supports the telnet transport protocol.  Insecure
 ///
-/// This file is part of RakNet Copyright 2003 Jenkins Software LLC
-///
-/// Usage of RakNet is subject to the appropriate license agreement.
+
 
 #include "NativeFeatureIncludes.h"
-#if _RAKNET_SUPPORT_TelnetTransport==1
+#if _RAKNET_SUPPORT_TelnetTransport==1 && _RAKNET_SUPPORT_TCPInterface==1
 
 #ifndef __TELNET_TRANSPORT
 #define __TELNET_TRANSPORT
@@ -14,6 +22,10 @@
 #include "TransportInterface.h"
 #include "DS_List.h"
 #include "Export.h"
+
+namespace RakNet
+{
+/// Forward declarations
 class TCPInterface;
 struct TelnetClient;
 
@@ -24,6 +36,9 @@ struct TelnetClient;
 class RAK_DLL_EXPORT TelnetTransport : public TransportInterface
 {
 public:
+	// GetInstance() and DestroyInstance(instance*)
+	STATIC_FACTORY_DECLARATIONS(TelnetTransport)
+
 	TelnetTransport();
 	virtual ~TelnetTransport();
 	bool Start(unsigned short port, bool serverMode);
@@ -57,6 +72,8 @@ protected:
 	char *sendSuffix, *sendPrefix;
 
 };
+
+} // namespace RakNet
 
 #endif
 

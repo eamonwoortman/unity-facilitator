@@ -1,3 +1,13 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 #ifndef __RAKNET_SMART_PTR_H
 #define __RAKNET_SMART_PTR_H
 
@@ -9,6 +19,9 @@
 
 //static int allocCount=0;
 //static int deallocCount=0;
+
+namespace RakNet
+{
 
 class RAK_DLL_EXPORT ReferenceCounter
 {
@@ -37,7 +50,7 @@ public:
 
 	RakNetSmartPtr(T* pValue) : ptr(pValue)
 	{
-		reference = RakNet::OP_NEW<ReferenceCounter>(__FILE__,__LINE__);
+		reference = RakNet::OP_NEW<ReferenceCounter>(_FILE_AND_LINE_);
 		reference->AddRef();
 
 //		allocCount+=2;
@@ -54,8 +67,8 @@ public:
 	{
 		if(reference && reference->Release() == 0)
 		{
-			RakNet::OP_DELETE(ptr, __FILE__, __LINE__);
-			RakNet::OP_DELETE(reference, __FILE__, __LINE__);
+			RakNet::OP_DELETE(ptr, _FILE_AND_LINE_);
+			RakNet::OP_DELETE(reference, _FILE_AND_LINE_);
 
 //			deallocCount+=2;
 //			printf("allocCount=%i deallocCount=%i Line=%i\n",allocCount, deallocCount, __LINE__);
@@ -71,8 +84,8 @@ public:
 	{
 		if(reference && reference->Release() == 0)
 		{
-			RakNet::OP_DELETE(ptr, __FILE__, __LINE__);
-			RakNet::OP_DELETE(reference, __FILE__, __LINE__);
+			RakNet::OP_DELETE(ptr, _FILE_AND_LINE_);
+			RakNet::OP_DELETE(reference, _FILE_AND_LINE_);
 
 //			deallocCount+=2;
 //			printf("allocCount=%i deallocCount=%i Line=%i\n",allocCount, deallocCount, __LINE__);
@@ -93,10 +106,10 @@ public:
 		{
 			reference->Release();
 
-			reference = RakNet::OP_NEW<ReferenceCounter>(__FILE__,__LINE__);
+			reference = RakNet::OP_NEW<ReferenceCounter>(_FILE_AND_LINE_);
 			reference->AddRef();
 			T* oldPtr=ptr;
-			ptr=RakNet::OP_NEW<T>(__FILE__,__LINE__);
+			ptr=RakNet::OP_NEW<T>(_FILE_AND_LINE_);
 			if (copyContents)
 				*ptr=*oldPtr;
 		}
@@ -147,8 +160,8 @@ public:
 		{
 			if(reference && reference->Release() == 0)
 			{
-				RakNet::OP_DELETE(ptr, __FILE__, __LINE__);
-				RakNet::OP_DELETE(reference, __FILE__, __LINE__);
+				RakNet::OP_DELETE(ptr, _FILE_AND_LINE_);
+				RakNet::OP_DELETE(reference, _FILE_AND_LINE_);
 
 //				deallocCount+=2;
 //				printf("allocCount=%i deallocCount=%i Line=%i\n",allocCount, deallocCount, __LINE__);
@@ -164,5 +177,7 @@ public:
 
 
 };
+
+} // namespace RakNet
 
 #endif

@@ -1,10 +1,20 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 /// \file
 /// \brief Contains RakNetTransportCommandParser and RakNetTransport used to provide a secure console connection.
 ///
-/// This file is part of RakNet Copyright 2003 Jenkins Software LLC
-///
-/// Usage of RakNet is subject to the appropriate license agreement.
 
+
+#include "NativeFeatureIncludes.h"
+#if _RAKNET_SUPPORT_TelnetTransport==1
 
 #ifndef __RAKNET_TRANSPORT_2
 #define __RAKNET_TRANSPORT_2
@@ -15,12 +25,12 @@
 #include "PluginInterface2.h"
 #include "Export.h"
 
-class RakPeerInterface;
-class RakNetTransport;
 namespace RakNet
 {
-	class BitStream;
-}
+/// Forward declarations
+class BitStream;
+class RakPeerInterface;
+class RakNetTransport;
 
 /// \defgroup RAKNET_TRANSPORT_GROUP RakNetTransport
 /// \brief UDP based transport implementation for the ConsoleServer
@@ -34,6 +44,9 @@ namespace RakNet
 class RAK_DLL_EXPORT RakNetTransport2 : public TransportInterface, public PluginInterface2
 {
 public:
+	// GetInstance() and DestroyInstance(instance*)
+	STATIC_FACTORY_DECLARATIONS(RakNetTransport2)
+
 	RakNetTransport2();
     virtual ~RakNetTransport2();
 
@@ -82,12 +95,16 @@ public:
 	/// \internal
 	virtual PluginReceiveResult OnReceive(Packet *packet);
 	/// \internal
-	virtual void OnClosedConnection(SystemAddress systemAddress, RakNetGUID rakNetGUID, PI2_LostConnectionReason lostConnectionReason );
+	virtual void OnClosedConnection(const SystemAddress &systemAddress, RakNetGUID rakNetGUID, PI2_LostConnectionReason lostConnectionReason );
 	/// \internal
-	virtual void OnNewConnection(SystemAddress systemAddress, RakNetGUID rakNetGUID, bool isIncoming);
+	virtual void OnNewConnection(const SystemAddress &systemAddress, RakNetGUID rakNetGUID, bool isIncoming);
 protected:
 	DataStructures::Queue<SystemAddress> newConnections, lostConnections;
 	DataStructures::Queue<Packet*> packetQueue;
 };
 
+} // namespace RakNet
+
 #endif
+
+#endif // _RAKNET_SUPPORT_*

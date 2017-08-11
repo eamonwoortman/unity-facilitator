@@ -1,11 +1,18 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 /// \file BitStream.h
 /// \brief This class allows you to write and read native types as a string of bits.  
 /// \details BitStream is used extensively throughout RakNet and is designed to be used by users as well.
 ///
-/// This file is part of RakNet Copyright 2003 Jenkins Software LLC
-///
-/// Usage of RakNet is subject to the appropriate license agreement.
-///
+
 
 #if defined(_MSC_VER) && _MSC_VER < 1299 // VC6 doesn't support template specialization
 #include "BitStream_NoTemplate.h"
@@ -19,6 +26,7 @@
 #include "Export.h"
 #include "RakNetTypes.h"
 #include "RakString.h"
+#include "RakWString.h"
 #include "RakAssert.h"
 #include <math.h>
 #include <float.h>
@@ -32,8 +40,6 @@
 #define _copysign copysign
 #endif
 
-/// The namespace RakNet is not consistently used.  It's only purpose is to avoid compiler errors for classes whose names are very common.
-/// For the most part I've tried to avoid this simply by using names very likely to be unique for my classes.
 namespace RakNet
 {
 	/// This class allows you to write and read native types as a string of bits.  BitStream is used extensively throughout RakNet and is designed to be used by users as well.
@@ -42,6 +48,9 @@ namespace RakNet
 	{
 
 	public:
+		// GetInstance() and DestroyInstance(instance*)
+		STATIC_FACTORY_DECLARATIONS(BitStream)
+
 		/// Default Constructor
 		BitStream();
 
@@ -85,7 +94,7 @@ namespace RakNet
 		/// \param[in] lastValue The last value to compare against.  Only used if \a writeToBitstream is true.
 		/// \return true if \a writeToBitstream is true.  true if \a writeToBitstream is false and the read was successful.  false if \a writeToBitstream is false and the read was not successful.
 		template <class templateType>
-			bool SerializeDelta(bool writeToBitstream, templateType &inOutCurrentValue, templateType lastValue);
+			bool SerializeDelta(bool writeToBitstream, templateType &inOutCurrentValue, const templateType &lastValue);
 
 		/// \brief Bidirectional version of SerializeDelta when you don't know what the last value is, or there is no last value.
 		/// \param[in] writeToBitstream true to write from your data to this bitstream.  False to read from this bitstream and write to your data
@@ -98,7 +107,7 @@ namespace RakNet
 		/// \details Undefine __BITSTREAM_NATIVE_END if you need endian swapping.
 		/// If you are not using __BITSTREAM_NATIVE_END the opposite is true for types larger than 1 byte
 		/// For floating point, this is lossy, using 2 bytes for a float and 4 for a double.  The range must be between -1 and +1.
-		/// For non-floating point, this is lossless, but only has benefit if you use less than half the range of the type
+		/// For non-floating point, this is lossless, but only has benefit if you use less than half the bits of the type
 		/// \param[in] writeToBitstream true to write from your data to this bitstream.  False to read from this bitstream and write to your data
 		/// \param[in] inOutTemplateVar The value to write
 		/// \return true if \a writeToBitstream is true.  true if \a writeToBitstream is false and the read was successful.  false if \a writeToBitstream is false and the read was not successful.
@@ -109,16 +118,16 @@ namespace RakNet
 		/// \details If the current value is different from the last value
 		/// the current value will be written.  Otherwise, a single bit will be written
 		/// For floating point, this is lossy, using 2 bytes for a float and 4 for a double.  The range must be between -1 and +1.
-		/// For non-floating point, this is lossless, but only has benefit if you use less than half the range of the type
+		/// For non-floating point, this is lossless, but only has benefit if you use less than half the bits of the type
 		/// If you are not using __BITSTREAM_NATIVE_END the opposite is true for types larger than 1 byte
 		/// \param[in] writeToBitstream true to write from your data to this bitstream.  False to read from this bitstream and write to your data
 		/// \param[in] inOutCurrentValue The current value to write
 		/// \param[in] lastValue The last value to compare against.  Only used if \a writeToBitstream is true.
 		/// \return true if \a writeToBitstream is true.  true if \a writeToBitstream is false and the read was successful.  false if \a writeToBitstream is false and the read was not successful.
 		template <class templateType>
-			bool SerializeCompressedDelta(bool writeToBitstream, templateType &inOutCurrentValue, templateType lastValue);
+			bool SerializeCompressedDelta(bool writeToBitstream, templateType &inOutCurrentValue, const templateType &lastValue);
 
-		/// \brief Save as SerializeCompressedDelta(templateType &currentValue, templateType lastValue) when we have an unknown second parameter
+		/// \brief Save as SerializeCompressedDelta(templateType &currentValue, const templateType &lastValue) when we have an unknown second parameter
 		/// \return true on data read. False on insufficient data in bitstream
 		template <class templateType>
 			bool SerializeCompressedDelta(bool writeToBitstream, templateType &inOutTemplateVar);
@@ -131,10 +140,33 @@ namespace RakNet
 		bool Serialize(bool writeToBitstream,  char* inOutByteArray, const unsigned int numberOfBytes );
 
 		/// \brief Serialize a float into 2 bytes, spanning the range between \a floatMin and \a floatMax
+		/// \param[in] writeToBitstream true to write from your data to this bitstream.  False to read from this bitstream and write to your data
 		/// \param[in] inOutFloat The float to write
 		/// \param[in] floatMin Predetermined minimum value of f
 		/// \param[in] floatMax Predetermined maximum value of f
 		bool SerializeFloat16(bool writeToBitstream, float &inOutFloat, float floatMin, float floatMax);
+
+		/// Serialize one type casted to another (smaller) type, to save bandwidth
+		/// serializationType should be uint8_t, uint16_t, uint24_t, or uint32_t
+		/// Example: int num=53; SerializeCasted<uint8_t>(true, num); would use 1 byte to write what would otherwise be an integer (4 or 8 bytes)
+		/// \param[in] writeToBitstream true to write from your data to this bitstream.  False to read from this bitstream and write to your data
+		/// \param[in] value The value to serialize
+		template <class serializationType, class sourceType >
+		bool SerializeCasted( bool writeToBitstream, sourceType &value );
+
+		/// Given the minimum and maximum values for an integer type, figure out the minimum number of bits to represent the range
+		/// Then serialize only those bits
+		/// \note A static is used so that the required number of bits for (maximum-minimum) is only calculated once. This does require that \a minimum and \maximum are fixed values for a given line of code for the life of the program
+		/// \param[in] writeToBitstream true to write from your data to this bitstream.  False to read from this bitstream and write to your data
+		/// \param[in] value Integer value to write, which should be between \a minimum and \a maximum
+		/// \param[in] minimum Minimum value of \a value
+		/// \param[in] maximum Maximum value of \a value
+		/// \param[in] allowOutsideRange If true, all sends will take an extra bit, however value can deviate from outside \a minimum and \a maximum. If false, will assert if the value deviates
+		template <class templateType>
+		bool SerializeBitsFromIntegerRange( bool writeToBitstream, templateType &value, const templateType minimum, const templateType maximum, bool allowOutsideRange=false );
+		/// \param[in] requiredBits Primarily for internal use, called from above function() after calculating number of bits needed to represent maximum-minimum
+		template <class templateType>
+		bool SerializeBitsFromIntegerRange( bool writeToBitstream, templateType &value, const templateType minimum, const templateType maximum, const int requiredBits, bool allowOutsideRange=false );
 
 		/// \brief Bidirectional serialize/deserialize a normalized 3D vector, using (at most) 4 bytes + 3 bits instead of 12-24 bytes.  
 		/// \details Will further compress y or z axis aligned vectors.
@@ -194,11 +226,8 @@ namespace RakNet
 		/// \brief Write any integral type to a bitstream.  
 		/// \details Undefine __BITSTREAM_NATIVE_END if you need endian swapping.
 		/// \param[in] inTemplateVar The value to write
-		// TODO - RakNet 4 Remove write, use only the WriteRef version, but rename it to Write
 		template <class templateType>
-			void Write(templateType inTemplateVar);
-		template <class templateType>
-			void WriteRef(const templateType &inTemplateVar);
+			void Write(const templateType &inTemplateVar);
 
 		/// \brief Write the dereferenced pointer to any integral type to a bitstream.  
 		/// \details Undefine __BITSTREAM_NATIVE_END if you need endian swapping.
@@ -212,36 +241,36 @@ namespace RakNet
 		/// \param[in] currentValue The current value to write
 		/// \param[in] lastValue The last value to compare against
 		template <class templateType>
-			void WriteDelta(templateType currentValue, templateType lastValue);
+			void WriteDelta(const templateType &currentValue, const templateType &lastValue);
 
 		/// \brief WriteDelta when you don't know what the last value is, or there is no last value.
 		/// \param[in] currentValue The current value to write
 		template <class templateType>
-			void WriteDelta(templateType currentValue);
+			void WriteDelta(const templateType &currentValue);
 
 		/// \brief Write any integral type to a bitstream.  
 		/// \details Undefine __BITSTREAM_NATIVE_END if you need endian swapping.
 		/// If you are not using __BITSTREAM_NATIVE_END the opposite is true for types larger than 1 byte
 		/// For floating point, this is lossy, using 2 bytes for a float and 4 for a double.  The range must be between -1 and +1.
-		/// For non-floating point, this is lossless, but only has benefit if you use less than half the range of the type
+		/// For non-floating point, this is lossless, but only has benefit if you use less than half the bits of the type
 		/// \param[in] inTemplateVar The value to write
 		template <class templateType>
-			void WriteCompressed(templateType inTemplateVar);
+			void WriteCompressed(const templateType &inTemplateVar);
 
 		/// \brief Write any integral type to a bitstream.  
 		/// \details If the current value is different from the last value
 		/// the current value will be written.  Otherwise, a single bit will be written
 		/// For floating point, this is lossy, using 2 bytes for a float and 4 for a double.  The range must be between -1 and +1.
-		/// For non-floating point, this is lossless, but only has benefit if you use less than half the range of the type
+		/// For non-floating point, this is lossless, but only has benefit if you use less than half the bits of the type
 		/// If you are not using __BITSTREAM_NATIVE_END the opposite is true for types larger than 1 byte
 		/// \param[in] currentValue The current value to write
 		/// \param[in] lastValue The last value to compare against
 		template <class templateType>
-			void WriteCompressedDelta(templateType currentValue, templateType lastValue);
+			void WriteCompressedDelta(const templateType &currentValue, const templateType &lastValue);
 
-		/// \brief Save as WriteCompressedDelta(templateType currentValue, templateType lastValue) when we have an unknown second parameter
+		/// \brief Save as WriteCompressedDelta(const templateType &currentValue, const templateType &lastValue) when we have an unknown second parameter
 		template <class templateType>
-			void WriteCompressedDelta(templateType currentValue);
+			void WriteCompressedDelta(const templateType &currentValue);
 
 		/// \brief Read any integral type from a bitstream.  
 		/// \details Define __BITSTREAM_NATIVE_END if you need endian swapping.
@@ -249,13 +278,6 @@ namespace RakNet
 		/// \return true on success, false on failure.
 		template <class templateType>
 			bool Read(templateType &outTemplateVar);
-
-		/// \brief Read into a pointer to any integral type from a bitstream.  
-		/// \details Define __BITSTREAM_NATIVE_END if you need endian swapping.
-		/// \param[in] outTemplateVar The value to read
-		/// \return true on success, false on failure.
-		template <class templateType>
-			bool ReadPtr(templateType *outTemplateVar);
 
 		/// \brief Read any integral type from a bitstream.  
 		/// \details If the written value differed from the value compared against in the write function,
@@ -269,7 +291,7 @@ namespace RakNet
 		/// \brief Read any integral type from a bitstream.  
 		/// \details Undefine __BITSTREAM_NATIVE_END if you need endian swapping.
 		/// For floating point, this is lossy, using 2 bytes for a float and 4 for a double.  The range must be between -1 and +1.
-		/// For non-floating point, this is lossless, but only has benefit if you use less than half the range of the type
+		/// For non-floating point, this is lossless, but only has benefit if you use less than half the bits of the type
 		/// If you are not using __BITSTREAM_NATIVE_END the opposite is true for types larger than 1 byte
 		/// \param[in] outTemplateVar The value to read
 		/// \return true on success, false on failure.
@@ -281,7 +303,7 @@ namespace RakNet
 		/// var will be updated.  Otherwise it will retain the current value.
 		/// the current value will be updated.
 		/// For floating point, this is lossy, using 2 bytes for a float and 4 for a double.  The range must be between -1 and +1.
-		/// For non-floating point, this is lossless, but only has benefit if you use less than half the range of the type
+		/// For non-floating point, this is lossless, but only has benefit if you use less than half the bits of the type
 		/// If you are not using __BITSTREAM_NATIVE_END the opposite is true for types larger than 1 byte
 		/// ReadCompressedDelta is only valid from a previous call to WriteDelta
 		/// \param[in] outTemplateVar The value to read
@@ -316,6 +338,26 @@ namespace RakNet
 		/// \param[in] floatMin Predetermined minimum value of f
 		/// \param[in] floatMax Predetermined maximum value of f
 		void WriteFloat16( float x, float floatMin, float floatMax );
+
+		/// Write one type serialized as another (smaller) type, to save bandwidth
+		/// serializationType should be uint8_t, uint16_t, uint24_t, or uint32_t
+		/// Example: int num=53; WriteCasted<uint8_t>(num); would use 1 byte to write what would otherwise be an integer (4 or 8 bytes)
+		/// \param[in] value The value to write
+		template <class serializationType, class sourceType >
+		void WriteCasted( const sourceType &value );
+
+		/// Given the minimum and maximum values for an integer type, figure out the minimum number of bits to represent the range
+		/// Then write only those bits
+		/// \note A static is used so that the required number of bits for (maximum-minimum) is only calculated once. This does require that \a minimum and \maximum are fixed values for a given line of code for the life of the program
+		/// \param[in] value Integer value to write, which should be between \a minimum and \a maximum
+		/// \param[in] minimum Minimum value of \a value
+		/// \param[in] maximum Maximum value of \a value
+		/// \param[in] allowOutsideRange If true, all sends will take an extra bit, however value can deviate from outside \a minimum and \a maximum. If false, will assert if the value deviates. This should match the corresponding value passed to Read().
+		template <class templateType>
+		void WriteBitsFromIntegerRange( const templateType value, const templateType minimum, const templateType maximum, bool allowOutsideRange=false );
+		/// \param[in] requiredBits Primarily for internal use, called from above function() after calculating number of bits needed to represent maximum-minimum
+		template <class templateType>
+		void WriteBitsFromIntegerRange( const templateType value, const templateType minimum, const templateType maximum, const int requiredBits, bool allowOutsideRange=false );
 
 		/// \brief Write a normalized 3D vector, using (at most) 4 bytes + 3 bits instead of 12-24 bytes.  
 		/// \details Will further compress y or z axis aligned vectors.
@@ -364,6 +406,26 @@ namespace RakNet
 		/// \param[in] floatMin Predetermined minimum value of f
 		/// \param[in] floatMax Predetermined maximum value of f
 		bool ReadFloat16( float &outFloat, float floatMin, float floatMax );
+
+		/// Read one type serialized to another (smaller) type, to save bandwidth
+		/// serializationType should be uint8_t, uint16_t, uint24_t, or uint32_t
+		/// Example: int num; ReadCasted<uint8_t>(num); would read 1 bytefrom the stream, and put the value in an integer
+		/// \param[in] value The value to write
+		template <class serializationType, class sourceType >
+		bool ReadCasted( sourceType &value );
+
+		/// Given the minimum and maximum values for an integer type, figure out the minimum number of bits to represent the range
+		/// Then read only those bits
+		/// \note A static is used so that the required number of bits for (maximum-minimum) is only calculated once. This does require that \a minimum and \maximum are fixed values for a given line of code for the life of the program
+		/// \param[in] value Integer value to read, which should be between \a minimum and \a maximum
+		/// \param[in] minimum Minimum value of \a value
+		/// \param[in] maximum Maximum value of \a value
+		/// \param[in] allowOutsideRange If true, all sends will take an extra bit, however value can deviate from outside \a minimum and \a maximum. If false, will assert if the value deviates. This should match the corresponding value passed to Write().
+		template <class templateType>
+		bool ReadBitsFromIntegerRange( templateType &value, const templateType minimum, const templateType maximum, bool allowOutsideRange=false );
+		/// \param[in] requiredBits Primarily for internal use, called from above function() after calculating number of bits needed to represent maximum-minimum
+		template <class templateType>
+		bool ReadBitsFromIntegerRange( templateType &value, const templateType minimum, const templateType maximum, const int requiredBits, bool allowOutsideRange=false );
 
 		/// \brief Read a normalized 3D vector, using (at most) 4 bytes + 3 bits instead of 12-24 bytes.  
 		/// \details Will further compress y or z axis aligned vectors.
@@ -573,6 +635,17 @@ namespace RakNet
 		/// Write zeros until the bitstream is filled up to \a bytes
 		void PadWithZeroToByteLength( unsigned int bytes );
 
+		/// Get the number of leading zeros for a number
+		/// \param[in] x Number to test
+		static int NumberOfLeadingZeroes( uint8_t x );
+		static int NumberOfLeadingZeroes( uint16_t x );
+		static int NumberOfLeadingZeroes( uint32_t x );
+		static int NumberOfLeadingZeroes( uint64_t x );
+		static int NumberOfLeadingZeroes( int8_t x );
+		static int NumberOfLeadingZeroes( int16_t x );
+		static int NumberOfLeadingZeroes( int32_t x );
+		static int NumberOfLeadingZeroes( int64_t x );
+
 		/// \internal Unrolled inner loop, for when performance is critical
 		void WriteAlignedVar8(const char *inByteArray);
 		/// \internal Unrolled inner loop, for when performance is critical
@@ -586,46 +659,84 @@ namespace RakNet
 		/// \internal Unrolled inner loop, for when performance is critical
 		bool ReadAlignedVar32(char *inOutByteArray);
 
+		inline void Write(const char * const inStringVar)
+		{
+			RakString::Serialize(inStringVar, this);
+		}
+		inline void Write(const wchar_t * const inStringVar)
+		{
+			RakWString::Serialize(inStringVar, this);
+		}
+		inline void Write(const unsigned char * const inTemplateVar)
+		{
+			Write((const char*)inTemplateVar);
+		}
+		inline void Write(char * const inTemplateVar)
+		{
+			Write((const char*)inTemplateVar);
+		}
+		inline void Write(unsigned char * const inTemplateVar)
+		{
+			Write((const char*)inTemplateVar);
+		}
+		inline void WriteCompressed(const char * const inStringVar)
+		{
+			RakString::SerializeCompressed(inStringVar,this,0,false);
+		}
+		inline void WriteCompressed(const wchar_t * const inStringVar)
+		{
+			RakWString::Serialize(inStringVar,this);
+		}
+		inline void WriteCompressed(const unsigned char * const inTemplateVar)
+		{
+			WriteCompressed((const char*) inTemplateVar);
+		}
+		inline void WriteCompressed(char * const inTemplateVar)
+		{
+			WriteCompressed((const char*) inTemplateVar);
+		}
+		inline void WriteCompressed(unsigned char * const inTemplateVar)
+		{
+			WriteCompressed((const char*) inTemplateVar);
+		}
+
 		/// ---- Member function template specialization declarations ----
 		// Used for VC7
 #if defined(_MSC_VER) && _MSC_VER == 1300
 		/// Write a bool to a bitstream.
 		/// \param[in] var The value to write
 		template <>
-			void WriteRef(const bool &var);
+			void Write(const bool &var);
 
 		/// Write a systemAddress to a bitstream
 		/// \param[in] var The value to write
 		template <>
-			void WriteRef(const SystemAddress &var);
+			void Write(const SystemAddress &var);
 
 		/// Write a uint24_t to a bitstream
 		/// \param[in] var The value to write
 		template <>
-		void WriteRef(const uint24_t &var);
+		void Write(const uint24_t &var);
 
 		/// Write a RakNetGUID to a bitsteam
 		/// \param[in] var The value to write
 		template <>
-			void WriteRef(const RakNetGuid &var);
-
-		/// Write an networkID to a bitstream
-		/// \param[in] var The value to write
-		template <>
-			void WriteRef(const NetworkID &var);
+			void Write(const RakNetGuid &var);
 
 		/// Write a string to a bitstream
 		/// \param[in] var The value to write
 		template <>
-			void WriteRef(const char* const &var);
+			void Write(const char* const &var);
 		template <>
-			void WriteRef(const unsigned char* const &var);
+			void Write(const unsigned char* const &var);
 		template <>
-			void WriteRef(char* const &var);
+			void Write(char* const &var);
 		template <>
-			void WriteRef(unsigned char* const &var);
+			void Write(unsigned char* const &var);
 		template <>
-			void WriteRef(const RakString &var);
+			void Write(const RakString &var);
+		template <>
+			void Write(const RakWString &var);
 
 		/// \brief Write a systemAddress.  
 		/// \details If the current value is different from the last value
@@ -633,51 +744,40 @@ namespace RakNet
 		/// \param[in] currentValue The current value to write
 		/// \param[in] lastValue The last value to compare against
 		template <>
-			void WriteDelta(SystemAddress currentValue, SystemAddress lastValue);
+			void WriteDelta(const SystemAddress &currentValue, const SystemAddress &lastValue);
 
 		template <>
-		void WriteDelta(uint24_t currentValue, uint24_t lastValue);
+		void WriteDelta(const uint24_t &currentValue, const uint24_t &lastValue);
 
 		template <>
-			void WriteDelta(RakNetGUID currentValue, RakNetGUID lastValue);
-
-		/// \brief Write an networkID.  
-		/// \details If the current value is different from the last value
-		/// the current value will be written.  Otherwise, a single bit will be written
-		/// \param[in] currentValue The current value to write
-		/// \param[in] lastValue The last value to compare against
-		template <>
-			void WriteDelta(NetworkID currentValue, NetworkID lastValue);
+			void WriteDelta(const RakNetGUID &currentValue, const RakNetGUID &lastValue);
 
 		/// \brief Write a bool delta.  
 		/// \details Same thing as just calling Write
 		/// \param[in] currentValue The current value to write
 		/// \param[in] lastValue The last value to compare against
 		template <>
-			void WriteDelta(bool currentValue, bool lastValue);
+			void WriteDelta(const bool &currentValue, const bool &lastValue);
 
 		template <>
-			void WriteCompressed(SystemAddress var);
+			void WriteCompressed(const SystemAddress &var);
 
 		template <>
-		void WriteCompressed(uint24_t var);
+		void WriteCompressed(const uint24_t &var);
 
 		template <>
-			void WriteCompressed(RakNetGUID var);
+			void WriteCompressed(const RakNetGUID &var);
 
 		template <>
-			void WriteCompressed(NetworkID var);
-
-		template <>
-			void WriteCompressed(bool var);
+			void WriteCompressed(const bool &var);
 
 		/// For values between -1 and 1
 		template <>
-			void WriteCompressed(float var);
+			void WriteCompressed(const float &var);
 
 		/// For values between -1 and 1
 		template <>
-			void WriteCompressed(double var);
+			void WriteCompressed(const double &var);
 
 		/// Compressed string
 		template <>
@@ -689,19 +789,21 @@ namespace RakNet
 		template <>
 			void WriteCompressed(unsigned char* var);
 		template <>
-			void WriteCompressed(RakString var);
+			void WriteCompressed(const RakString &var);
+		template <>
+			void WriteCompressed(const RakWString &var);
 
 		/// \brief Write a bool delta.  
 		/// \details Same thing as just calling Write
 		/// \param[in] currentValue The current value to write
 		/// \param[in] lastValue The last value to compare against
 		template <>
-			void WriteCompressedDelta(bool currentValue, bool lastValue);
+			void WriteCompressedDelta(const bool &currentValue, const bool &lastValue);
 
-		/// \brief Save as WriteCompressedDelta(bool currentValue, templateType lastValue) 
+		/// \brief Save as WriteCompressedDelta(bool currentValue, const templateType &lastValue) 
 		/// when we have an unknown second bool
 		template <>
-			void WriteCompressedDelta(bool currentValue);
+			void WriteCompressedDelta(const bool &currentValue);
 
 		/// \brief Read a bool from a bitstream.
 		/// \param[in] var The value to read
@@ -721,21 +823,19 @@ namespace RakNet
 		template <>
 			bool Read(RakNetGUID &var);
 
-		/// \brief Read an NetworkID from a bitstream.
-		/// \param[in] var The value to read
-		/// \return true on success, false on failure.
-		template <>
-			bool Read(NetworkID &var);
-
 		/// \brief Read a String from a bitstream.
 		/// \param[in] var The value to read
 		/// \return true on success, false on failure.
 		template <>
 			bool Read(char *&var);
 		template <>
+			bool Read(wchar_t *&var);
+		template <>
 			bool Read(unsigned char *&var);
 		template <>
 			bool Read(RakString &var);
+		template <>
+			bool Read(RakWString &var);
 
 		/// \brief Read a bool from a bitstream.
 		/// \param[in] var The value to read
@@ -753,9 +853,6 @@ namespace RakNet
 			bool ReadCompressed(RakNetGUID &var);
 
 		template <>
-			bool ReadCompressed(NetworkID &var);
-
-		template <>
 			bool ReadCompressed(bool &var);
 
 		template <>
@@ -769,9 +866,13 @@ namespace RakNet
 		template <>
 			bool ReadCompressed(char* &var);
 		template <>
+			bool ReadCompressed(wchar_t* &var);
+		template <>
 			bool ReadCompressed(unsigned char *&var);
 		template <>
 			bool ReadCompressed(RakString &var);
+		template <>
+			bool ReadCompressed(RakWString &var);
 
 		/// \brief Read a bool from a bitstream.
 		/// \param[in] var The value to read
@@ -791,7 +892,7 @@ namespace RakNet
 		{
 			return IsNetworkOrder();
 		}
-		inline static bool IsNetworkOrder(void) {static const bool r = IsNetworkOrderInternal(); return r;}
+		inline static bool IsNetworkOrder(void) {bool r = IsNetworkOrderInternal(); return r;}
 		// Not inline, won't compile on PC due to winsock include errors
 		static bool IsNetworkOrderInternal(void);
 		static void ReverseBytes(unsigned char *inByteArray, unsigned char *inOutByteArray, const unsigned int length);
@@ -802,6 +903,13 @@ namespace RakNet
 		BitStream( const BitStream &invalid) {
 			(void) invalid;
 			RakAssert(0);
+		}
+
+		BitStream& operator = ( const BitStream& invalid ) {
+			(void) invalid;
+			RakAssert(0);
+			static BitStream i;
+			return i;
 		}
 
 		/// \brief Assume the input source points to a native type, compress and write it.
@@ -837,7 +945,7 @@ namespace RakNet
 		}
 
 		template <class templateType>
-		inline bool BitStream::SerializeDelta(bool writeToBitstream, templateType &inOutCurrentValue, templateType lastValue)
+		inline bool BitStream::SerializeDelta(bool writeToBitstream, templateType &inOutCurrentValue, const templateType &lastValue)
 		{
 			if (writeToBitstream)
 				WriteDelta(inOutCurrentValue, lastValue);
@@ -867,7 +975,7 @@ namespace RakNet
 		}
 
 		template <class templateType>
-		inline bool BitStream::SerializeCompressedDelta(bool writeToBitstream, templateType &inOutCurrentValue, templateType lastValue)
+		inline bool BitStream::SerializeCompressedDelta(bool writeToBitstream, templateType &inOutCurrentValue, const templateType &lastValue)
 		{
 			if (writeToBitstream)
 				WriteCompressedDelta(inOutCurrentValue,lastValue);
@@ -892,6 +1000,28 @@ namespace RakNet
 				Write(inOutByteArray, numberOfBytes);
 			else
 				return Read(inOutByteArray, numberOfBytes);
+			return true;
+		}
+		
+		template <class serializationType, class sourceType >
+		bool BitStream::SerializeCasted( bool writeToBitstream, sourceType &value )
+		{
+			if (writeToBitstream) WriteCasted<serializationType>(value);
+			else return ReadCasted<serializationType>(value);
+			return true;
+		}
+
+		template <class templateType>
+		bool BitStream::SerializeBitsFromIntegerRange( bool writeToBitstream, templateType &value, const templateType minimum, const templateType maximum, bool allowOutsideRange )
+		{
+			int requiredBits=BYTES_TO_BITS(sizeof(templateType))-NumberOfLeadingZeroes(templateType(maximum-minimum));
+			return SerializeBitsFromIntegerRange(writeToBitstream,value,minimum,maximum,requiredBits,allowOutsideRange);
+		}
+		template <class templateType>
+		bool BitStream::SerializeBitsFromIntegerRange( bool writeToBitstream, templateType &value, const templateType minimum, const templateType maximum, const int requiredBits, bool allowOutsideRange )
+		{
+			if (writeToBitstream) WriteBitsFromIntegerRange(value,minimum,maximum,requiredBits,allowOutsideRange);
+			else return ReadBitsFromIntegerRange(value,minimum,maximum,requiredBits,allowOutsideRange);
 			return true;
 		}
 
@@ -949,13 +1079,7 @@ namespace RakNet
 		}
 
 	template <class templateType>
-		inline void BitStream::Write(templateType inTemplateVar)
-		{
-			WriteRef(inTemplateVar);
-		}
-
-	template <class templateType>
-		inline void BitStream::WriteRef(const templateType &inTemplateVar)
+		inline void BitStream::Write(const templateType &inTemplateVar)
 	{
 #ifdef _MSC_VER
 #pragma warning(disable:4127)   // conditional expression is constant
@@ -1003,7 +1127,7 @@ namespace RakNet
 	/// \brief Write a bool to a bitstream.
 	/// \param[in] inTemplateVar The value to write
 	template <>
-		inline void BitStream::WriteRef(const bool &inTemplateVar)
+		inline void BitStream::Write(const bool &inTemplateVar)
 		{
 			if ( inTemplateVar )
 				Write1();
@@ -1015,100 +1139,90 @@ namespace RakNet
 	/// \brief Write a systemAddress to a bitstream.
 	/// \param[in] inTemplateVar The value to write
 	template <>
-		inline void BitStream::WriteRef(const SystemAddress &inTemplateVar)
+		inline void BitStream::Write(const SystemAddress &inTemplateVar)
 	{
-		// Hide the address so routers don't modify it
-		SystemAddress var2=inTemplateVar;
-		var2.binaryAddress=~inTemplateVar.binaryAddress;
-		// Don't endian swap the address
-		WriteBits((unsigned char*)&var2.binaryAddress, sizeof(var2.binaryAddress)*8, true);
-		Write(var2.port);
+		Write(inTemplateVar.GetIPVersion());
+		if (inTemplateVar.GetIPVersion()==4)
+		{
+			// Hide the address so routers don't modify it
+			SystemAddress var2=inTemplateVar;
+			uint32_t binaryAddress=~inTemplateVar.address.addr4.sin_addr.s_addr;
+			// Don't endian swap the address or port
+			WriteBits((unsigned char*)&binaryAddress, sizeof(binaryAddress)*8, true);
+			unsigned short p = var2.GetPortNetworkOrder();
+			WriteBits((unsigned char*)&p, sizeof(unsigned short)*8, true);
+		}
+		else
+		{
+#if RAKNET_SUPPORT_IPV6==1
+			// Don't endian swap
+			WriteBits((const unsigned char*) &inTemplateVar.address.addr6, sizeof(inTemplateVar.address.addr6)*8, true);
+#endif
+		}
 	}
 
 	template <>
-	inline void BitStream::WriteRef(const uint24_t &inTemplateVar)
+	inline void BitStream::Write(const uint24_t &inTemplateVar)
 	{
 		AlignWriteToByteBoundary();
 		AddBitsAndReallocate(3*8);
 
 		if (IsBigEndian()==false)
 		{
-			data[( numberOfBitsUsed >> 3 ) + 0] = ((char *)&inTemplateVar.val)[0];
-			data[( numberOfBitsUsed >> 3 ) + 1] = ((char *)&inTemplateVar.val)[1];
-			data[( numberOfBitsUsed >> 3 ) + 2] = ((char *)&inTemplateVar.val)[2];
+			data[( numberOfBitsUsed >> 3 ) + 0] = ((unsigned char *)&inTemplateVar.val)[0];
+			data[( numberOfBitsUsed >> 3 ) + 1] = ((unsigned char *)&inTemplateVar.val)[1];
+			data[( numberOfBitsUsed >> 3 ) + 2] = ((unsigned char *)&inTemplateVar.val)[2];
 		}
 		else
 		{
-			data[( numberOfBitsUsed >> 3 ) + 0] = ((char *)&inTemplateVar.val)[3];
-			data[( numberOfBitsUsed >> 3 ) + 1] = ((char *)&inTemplateVar.val)[2];
-			data[( numberOfBitsUsed >> 3 ) + 2] = ((char *)&inTemplateVar.val)[1];
+			data[( numberOfBitsUsed >> 3 ) + 0] = ((unsigned char *)&inTemplateVar.val)[3];
+			data[( numberOfBitsUsed >> 3 ) + 1] = ((unsigned char *)&inTemplateVar.val)[2];
+			data[( numberOfBitsUsed >> 3 ) + 2] = ((unsigned char *)&inTemplateVar.val)[1];
 		}
 
 		numberOfBitsUsed+=3*8;
 	}
 
 	template <>
-		inline void BitStream::WriteRef(const RakNetGUID &inTemplateVar)
+		inline void BitStream::Write(const RakNetGUID &inTemplateVar)
 		{
 			Write(inTemplateVar.g);
 		}
 
-	/// \brief Write an networkID to a bitstream.
-	/// \param[in] inTemplateVar The value to write
-	template <>
-		inline void BitStream::WriteRef(const NetworkID &inTemplateVar)
-	{
-#if NETWORK_ID_SUPPORTS_PEER_TO_PEER==1
-		RakAssert(NetworkID::IsPeerToPeerMode());
-//		if (NetworkID::IsPeerToPeerMode()) // Use the function rather than directly access the member or DLL users will get an undefined external error
-		{
-			if (inTemplateVar.guid!=UNASSIGNED_RAKNET_GUID)
-			{
-				Write(true);
-				Write(inTemplateVar.guid);
-			}
-			else
-				Write(false);
-			if (inTemplateVar.systemAddress!=UNASSIGNED_SYSTEM_ADDRESS)
-			{
-				Write(true);
-				Write(inTemplateVar.systemAddress);
-			}
-			else
-				Write(false);
-		}
-#endif
-		/*
-		Write(var.guid);
-		Write(var.systemAddress);
-		*/
-		Write(inTemplateVar.localSystemAddress);
-	}
-
 	/// \brief Write a string to a bitstream.
 	/// \param[in] var The value to write
 	template <>
-		inline void BitStream::WriteRef(const RakString &inTemplateVar)
+		inline void BitStream::Write(const RakString &inTemplateVar)
 	{
 		inTemplateVar.Serialize(this);
 	}
 	template <>
-		inline void BitStream::WriteRef(const char * const &inStringVar)
+		inline void BitStream::Write(const RakWString &inTemplateVar)
+	{
+		inTemplateVar.Serialize(this);
+	}
+	template <>
+		inline void BitStream::Write(const char * const &inStringVar)
 	{
 		RakString::Serialize(inStringVar, this);
 	}
 	template <>
-		inline void BitStream::WriteRef(const unsigned char * const &inTemplateVar)
+		inline void BitStream::Write(const wchar_t * const &inStringVar)
+	{
+		RakWString::Serialize(inStringVar, this);
+	}
+	template <>
+		inline void BitStream::Write(const unsigned char * const &inTemplateVar)
 	{
 		Write((const char*)inTemplateVar);
 	}
 	template <>
-		inline void BitStream::WriteRef(char * const &inTemplateVar)
+		inline void BitStream::Write(char * const &inTemplateVar)
 	{
 		Write((const char*)inTemplateVar);
 	}
 	template <>
-		inline void BitStream::WriteRef(unsigned char * const &inTemplateVar)
+		inline void BitStream::Write(unsigned char * const &inTemplateVar)
 	{
 		Write((const char*)inTemplateVar);
 	}
@@ -1119,7 +1233,7 @@ namespace RakNet
 	/// \param[in] currentValue The current value to write
 	/// \param[in] lastValue The last value to compare against
 	template <class templateType>
-		inline void BitStream::WriteDelta(templateType currentValue, templateType lastValue)
+		inline void BitStream::WriteDelta(const templateType &currentValue, const templateType &lastValue)
 	{
 		if (currentValue==lastValue)
 		{
@@ -1131,66 +1245,12 @@ namespace RakNet
 			Write(currentValue);
 		}
 	}
-
-		/*
-	/// \brief Write a systemAddress.  
-	/// \details If the current value is different from the last value
-	/// the current value will be written.  Otherwise, a single bit will be written
-	/// \param[in] currentValue The current value to write
-	/// \param[in] lastValue The last value to compare against
-	template <>
-		inline void BitStream::WriteDelta(SystemAddress currentValue, SystemAddress lastValue)
-	{
-		if (currentValue==lastValue)
-		{
-			Write(false);
-		}
-		else
-		{
-			Write(true);
-			Write(currentValue);
-		}
-	}
-
-	template <>
-		inline void BitStream::WriteDelta(RakNetGUID currentValue, RakNetGUID lastValue)
-		{
-			if (currentValue==lastValue)
-			{
-				Write(false);
-			}
-			else
-			{
-				Write(true);
-				Write(currentValue);
-			}
-		}
-
-	/// \brief Write a systemAddress.  
-	/// \details If the current value is different from the last value
-	/// the current value will be written.  Otherwise, a single bit will be written
-	/// \param[in] currentValue The current value to write
-	/// \param[in] lastValue The last value to compare against
-	template <>
-		inline void BitStream::WriteDelta(NetworkID currentValue, NetworkID lastValue)
-	{
-		if (currentValue==lastValue)
-		{
-			Write(false);
-		}
-		else
-		{
-			Write(true);
-			Write(currentValue);
-		}
-	}
-	*/
 
 	/// \brief Write a bool delta. Same thing as just calling Write
 	/// \param[in] currentValue The current value to write
 	/// \param[in] lastValue The last value to compare against
 	template <>
-		inline void BitStream::WriteDelta(bool currentValue, bool lastValue)
+		inline void BitStream::WriteDelta(const bool &currentValue, const bool &lastValue)
 	{
 		(void) lastValue;
 
@@ -1200,7 +1260,7 @@ namespace RakNet
 	/// \brief WriteDelta when you don't know what the last value is, or there is no last value.
 	/// \param[in] currentValue The current value to write
 	template <class templateType>
-		inline void BitStream::WriteDelta(templateType currentValue)
+		inline void BitStream::WriteDelta(const templateType &currentValue)
 	{
 		Write(true);
 		Write(currentValue);
@@ -1209,11 +1269,11 @@ namespace RakNet
 	/// \brief Write any integral type to a bitstream.  
 	/// \details Undefine __BITSTREAM_NATIVE_END if you need endian swapping.
 	/// For floating point, this is lossy, using 2 bytes for a float and 4 for a double.  The range must be between -1 and +1.
-	/// For non-floating point, this is lossless, but only has benefit if you use less than half the range of the type
+	/// For non-floating point, this is lossless, but only has benefit if you use less than half the bits of the type
 	/// If you are not using __BITSTREAM_NATIVE_END the opposite is true for types larger than 1 byte
 	/// \param[in] inTemplateVar The value to write
 	template <class templateType>
-		inline void BitStream::WriteCompressed(templateType inTemplateVar)
+		inline void BitStream::WriteCompressed(const templateType &inTemplateVar)
 	{
 #ifdef _MSC_VER
 #pragma warning(disable:4127)   // conditional expression is constant
@@ -1240,99 +1300,103 @@ namespace RakNet
 	}
 
 	template <>
-		inline void BitStream::WriteCompressed(SystemAddress inTemplateVar)
+		inline void BitStream::WriteCompressed(const SystemAddress &inTemplateVar)
 	{
 		Write(inTemplateVar);
 	}
 
 	template <>
-	inline void BitStream::WriteCompressed(RakNetGUID inTemplateVar)
+	inline void BitStream::WriteCompressed(const RakNetGUID &inTemplateVar)
 	{
 		Write(inTemplateVar);
 	}
 
 	template <>
-	inline void BitStream::WriteCompressed(uint24_t var)
+	inline void BitStream::WriteCompressed(const uint24_t &var)
 	{
 		Write(var);
 	}
 
 	template <>
-		inline void BitStream::WriteCompressed(NetworkID inTemplateVar)
-	{
-		Write(inTemplateVar);
-	}
-
-	template <>
-		inline void BitStream::WriteCompressed(bool inTemplateVar)
+		inline void BitStream::WriteCompressed(const bool &inTemplateVar)
 	{
 		Write(inTemplateVar);
 	}
 
 	/// For values between -1 and 1
 	template <>
-		inline void BitStream::WriteCompressed(float inTemplateVar)
+		inline void BitStream::WriteCompressed(const float &inTemplateVar)
 	{
 		RakAssert(inTemplateVar > -1.01f && inTemplateVar < 1.01f);
-		if (inTemplateVar < -1.0f)
-			inTemplateVar=-1.0f;
-		if (inTemplateVar > 1.0f)
-			inTemplateVar=1.0f;
-		Write((unsigned short)((inTemplateVar+1.0f)*32767.5f));
+		float varCopy=inTemplateVar;
+		if (varCopy < -1.0f)
+			varCopy=-1.0f;
+		if (varCopy > 1.0f)
+			varCopy=1.0f;
+		Write((unsigned short)((varCopy+1.0f)*32767.5f));
 	}
 
 	/// For values between -1 and 1
 	template <>
-		inline void BitStream::WriteCompressed(double inTemplateVar)
+		inline void BitStream::WriteCompressed(const double &inTemplateVar)
 	{
 		RakAssert(inTemplateVar > -1.01 && inTemplateVar < 1.01);
-		if (inTemplateVar < -1.0f)
-			inTemplateVar=-1.0f;
-		if (inTemplateVar > 1.0f)
-			inTemplateVar=1.0f;
-#ifdef _DEBUG
-		RakAssert(sizeof(unsigned long)==4);
-#endif
-		Write((unsigned long)((inTemplateVar+1.0)*2147483648.0));
+		double varCopy=inTemplateVar;
+		if (varCopy < -1.0f)
+			varCopy=-1.0f;
+		if (varCopy > 1.0f)
+			varCopy=1.0f;
+		Write((uint32_t)((varCopy+1.0)*2147483648.0));
 	}
 
 	/// Compress the string
 	template <>
-		inline void BitStream::WriteCompressed(RakString inTemplateVar)
+		inline void BitStream::WriteCompressed(const RakString &inTemplateVar)
 	{
 		inTemplateVar.SerializeCompressed(this,0,false);
 	}
 	template <>
-		inline void BitStream::WriteCompressed(const char * inStringVar)
+	inline void BitStream::WriteCompressed(const RakWString &inTemplateVar)
+	{
+		inTemplateVar.Serialize(this);
+	}
+	template <>
+		inline void BitStream::WriteCompressed(const char * const &inStringVar)
 	{
 		RakString::SerializeCompressed(inStringVar,this,0,false);
 	}
 	template <>
-		inline void BitStream::WriteCompressed(const unsigned char * inTemplateVar)
+	inline void BitStream::WriteCompressed(const wchar_t * const &inStringVar)
+	{
+		RakWString::Serialize(inStringVar,this);
+	}
+	template <>
+		inline void BitStream::WriteCompressed(const unsigned char * const &inTemplateVar)
 	{
 		WriteCompressed((const char*) inTemplateVar);
 	}
 	template <>
-		inline void BitStream::WriteCompressed(char * inTemplateVar)
+		inline void BitStream::WriteCompressed(char * const &inTemplateVar)
 	{
 		WriteCompressed((const char*) inTemplateVar);
 	}
 	template <>
-		inline void BitStream::WriteCompressed(unsigned char * inTemplateVar)
+		inline void BitStream::WriteCompressed(unsigned char * const &inTemplateVar)
 	{
 		WriteCompressed((const char*) inTemplateVar);
 	}
+	
 
 	/// \brief Write any integral type to a bitstream.  
 	/// \details If the current value is different from the last value
 	/// the current value will be written.  Otherwise, a single bit will be written
 	/// For floating point, this is lossy, using 2 bytes for a float and 4 for a double.  The range must be between -1 and +1.
-	/// For non-floating point, this is lossless, but only has benefit if you use less than half the range of the type
+	/// For non-floating point, this is lossless, but only has benefit if you use less than half the bits of the type
 	/// If you are not using __BITSTREAM_NATIVE_END the opposite is true for types larger than 1 byte
 	/// \param[in] currentValue The current value to write
 	/// \param[in] lastValue The last value to compare against
 	template <class templateType>
-		inline void BitStream::WriteCompressedDelta(templateType currentValue, templateType lastValue)
+		inline void BitStream::WriteCompressedDelta(const templateType &currentValue, const templateType &lastValue)
 	{
 		if (currentValue==lastValue)
 		{
@@ -1349,26 +1413,26 @@ namespace RakNet
 	/// \param[in] currentValue The current value to write
 	/// \param[in] lastValue The last value to compare against
 	template <>
-		inline void BitStream::WriteCompressedDelta(bool currentValue, bool lastValue)
+		inline void BitStream::WriteCompressedDelta(const bool &currentValue, const bool &lastValue)
 	{
 		(void) lastValue;
 
 		Write(currentValue);
 	}
 
-	/// \brief Save as WriteCompressedDelta(templateType currentValue, templateType lastValue) 
+	/// \brief Save as WriteCompressedDelta(const templateType &currentValue, const templateType &lastValue) 
 	/// when we have an unknown second parameter
 	template <class templateType>
-		inline void BitStream::WriteCompressedDelta(templateType currentValue)
+		inline void BitStream::WriteCompressedDelta(const templateType &currentValue)
 	{
 		Write(true);
 		WriteCompressed(currentValue);
 	}
 
-	/// \brief Save as WriteCompressedDelta(bool currentValue, templateType lastValue) 
+	/// \brief Save as WriteCompressedDelta(bool currentValue, const templateType &lastValue) 
 	/// when we have an unknown second bool
 	template <>
-		inline void BitStream::WriteCompressedDelta(bool currentValue)
+		inline void BitStream::WriteCompressedDelta(const bool &currentValue)
 	{
 		Write(currentValue);
 	}
@@ -1405,36 +1469,6 @@ namespace RakNet
 		}
 	}
 
-	template <class templateType>
-	inline bool BitStream::ReadPtr(templateType *outTemplateVar)
-	{
-#ifdef _MSC_VER
-#pragma warning(disable:4127)   // conditional expression is constant
-#endif
-		if (sizeof(templateType)==1)
-			return ReadBits( ( unsigned char* ) outTemplateVar, sizeof(templateType) * 8, true );
-		else
-		{
-#ifndef __BITSTREAM_NATIVE_END
-#ifdef _MSC_VER
-#pragma warning(disable:4244)   // '=' : conversion from 'unsigned long' to 'unsigned short', possible loss of data
-#endif
-			if (DoEndianSwap())
-			{
-				unsigned char output[sizeof(templateType)];
-				if (ReadBits( ( unsigned char* ) output, sizeof(templateType) * 8, true ))
-				{
-					ReverseBytes(output, (unsigned char*)outTemplateVar, sizeof(templateType));
-					return true;
-				}
-				return false;
-			}
-			else
-#endif
-				return ReadBits( ( unsigned char* ) outTemplateVar, sizeof(templateType) * 8, true );
-		}
-	}
-
 	/// \brief Read a bool from a bitstream.
 	/// \param[in] outTemplateVar The value to read
 	template <>
@@ -1459,12 +1493,31 @@ namespace RakNet
 	template <>
 		inline bool BitStream::Read(SystemAddress &outTemplateVar)
 	{
-		// Read(var.binaryAddress);
-		// Don't endian swap the address
-		ReadBits( ( unsigned char* ) & outTemplateVar.binaryAddress, sizeof(outTemplateVar.binaryAddress) * 8, true );
-		// Unhide the IP address, done to prevent routers from changing it
-		outTemplateVar.binaryAddress=~outTemplateVar.binaryAddress;
-		return Read(outTemplateVar.port);
+		unsigned char ipVersion;
+		Read(ipVersion);
+		if (ipVersion==4)
+		{
+			outTemplateVar.address.addr4.sin_family=AF_INET;
+			// Read(var.binaryAddress);
+			// Don't endian swap the address or port
+			uint32_t binaryAddress;
+			ReadBits( ( unsigned char* ) & binaryAddress, sizeof(binaryAddress) * 8, true );
+			// Unhide the IP address, done to prevent routers from changing it
+			outTemplateVar.address.addr4.sin_addr.s_addr=~binaryAddress;
+			bool b = ReadBits(( unsigned char* ) & outTemplateVar.address.addr4.sin_port, sizeof(outTemplateVar.address.addr4.sin_port) * 8, true);
+			outTemplateVar.debugPort=ntohs(outTemplateVar.address.addr4.sin_port);
+			return b;
+		}
+		else
+		{
+#if RAKNET_SUPPORT_IPV6==1
+			bool b = ReadBits((unsigned char*) &outTemplateVar.address.addr6, sizeof(outTemplateVar.address.addr6)*8, true);
+			outTemplateVar.debugPort=ntohs(outTemplateVar.address.addr6.sin6_port);
+			return b;
+#else
+			return false;
+#endif
+		}	
 	}
 
 	template <>
@@ -1476,18 +1529,18 @@ namespace RakNet
 
 		if (IsBigEndian()==false)
 		{
-			((char *)&outTemplateVar.val)[0]=data[ (readOffset >> 3) + 0];
-			((char *)&outTemplateVar.val)[1]=data[ (readOffset >> 3) + 1];
-			((char *)&outTemplateVar.val)[2]=data[ (readOffset >> 3) + 2];
-			((char *)&outTemplateVar.val)[3]=0;
+			((unsigned char *)&outTemplateVar.val)[0]=data[ (readOffset >> 3) + 0];
+			((unsigned char *)&outTemplateVar.val)[1]=data[ (readOffset >> 3) + 1];
+			((unsigned char *)&outTemplateVar.val)[2]=data[ (readOffset >> 3) + 2];
+			((unsigned char *)&outTemplateVar.val)[3]=0;
 		}
 		else
 		{
 
-			((char *)&outTemplateVar.val)[3]=data[ (readOffset >> 3) + 0];
-			((char *)&outTemplateVar.val)[2]=data[ (readOffset >> 3) + 1];
-			((char *)&outTemplateVar.val)[1]=data[ (readOffset >> 3) + 2];
-			((char *)&outTemplateVar.val)[0]=0;
+			((unsigned char *)&outTemplateVar.val)[3]=data[ (readOffset >> 3) + 0];
+			((unsigned char *)&outTemplateVar.val)[2]=data[ (readOffset >> 3) + 1];
+			((unsigned char *)&outTemplateVar.val)[1]=data[ (readOffset >> 3) + 2];
+			((unsigned char *)&outTemplateVar.val)[0]=0;
 		}
 
 		readOffset+=3*8;
@@ -1500,39 +1553,14 @@ namespace RakNet
 		return Read(outTemplateVar.g);
 	}
 
-	/// \brief Read an networkID from a bitstream.
-	/// \param[in] outTemplateVar The value to read
-	template <>
-		inline bool BitStream::Read(NetworkID &outTemplateVar)
-	{
-#if NETWORK_ID_SUPPORTS_PEER_TO_PEER==1
-		RakAssert(NetworkID::IsPeerToPeerMode());
-		//if (NetworkID::IsPeerToPeerMode()) // Use the function rather than directly access the member or DLL users will get an undefined external error
-		{
-			bool hasGuid, hasSystemAddress;
-			Read(hasGuid);
-			if (hasGuid)
-				Read(outTemplateVar.guid);
-			else
-				outTemplateVar.guid=UNASSIGNED_RAKNET_GUID;
-			Read(hasSystemAddress);
-			if (hasSystemAddress)
-				Read(outTemplateVar.systemAddress);
-			else
-				outTemplateVar.systemAddress=UNASSIGNED_SYSTEM_ADDRESS;
-		}
-#endif
-		/*
-		Read(var.guid);
-		Read(var.systemAddress);
-		*/
-		return Read(outTemplateVar.localSystemAddress);
-	}
 
-	/// \brief Read an networkID from a bitstream.
-	/// \param[in] outTemplateVar The value to read
 	template <>
 		inline bool BitStream::Read(RakString &outTemplateVar)
+	{
+		return outTemplateVar.Deserialize(this);
+	}
+	template <>
+	inline bool BitStream::Read(RakWString &outTemplateVar)
 	{
 		return outTemplateVar.Deserialize(this);
 	}
@@ -1540,6 +1568,11 @@ namespace RakNet
 		inline bool BitStream::Read(char *&varString)
 	{
 		return RakString::Deserialize(varString,this);
+	}
+	template <>
+	inline bool BitStream::Read(wchar_t *&varString)
+	{
+		return RakWString::Deserialize(varString,this);
 	}
 	template <>
 		inline bool BitStream::Read(unsigned char *&varString)
@@ -1574,7 +1607,7 @@ namespace RakNet
 	/// \brief Read any integral type from a bitstream.  
 	/// \details Undefine __BITSTREAM_NATIVE_END if you need endian swapping.
 	/// For floating point, this is lossy, using 2 bytes for a float and 4 for a double.  The range must be between -1 and +1.
-	/// For non-floating point, this is lossless, but only has benefit if you use less than half the range of the type
+	/// For non-floating point, this is lossless, but only has benefit if you use less than half the bits of the type
 	/// If you are not using __BITSTREAM_NATIVE_END the opposite is true for types larger than 1 byte
 	/// \param[in] outTemplateVar The value to read
 	template <class templateType>
@@ -1623,12 +1656,6 @@ namespace RakNet
 	}
 
 	template <>
-		inline bool BitStream::ReadCompressed(NetworkID &outTemplateVar)
-	{
-		return Read(outTemplateVar);
-	}
-
-	template <>
 		inline bool BitStream::ReadCompressed(bool &outTemplateVar)
 	{
 		return Read(outTemplateVar);
@@ -1651,7 +1678,7 @@ namespace RakNet
 	template <>
 		inline bool BitStream::ReadCompressed(double &outTemplateVar)
 	{
-		unsigned long compressedFloat;
+		uint32_t compressedFloat;
 		if (Read(compressedFloat))
 		{
 			outTemplateVar = ((double)compressedFloat / 2147483648.0 - 1.0);
@@ -1667,9 +1694,19 @@ namespace RakNet
 		return outTemplateVar.DeserializeCompressed(this,false);
 	}
 	template <>
+	inline bool BitStream::ReadCompressed(RakWString &outTemplateVar)
+	{
+		return outTemplateVar.Deserialize(this);
+	}
+	template <>
 	inline bool BitStream::ReadCompressed(char *&outTemplateVar)
 	{
 		return RakString::DeserializeCompressed(outTemplateVar,this,false);
+	}
+	template <>
+	inline bool BitStream::ReadCompressed(wchar_t *&outTemplateVar)
+	{
+		return RakWString::Deserialize(outTemplateVar,this);
 	}
 	template <>
 	inline bool BitStream::ReadCompressed(unsigned char *&outTemplateVar)
@@ -1682,7 +1719,7 @@ namespace RakNet
 	/// var will be updated.  Otherwise it will retain the current value.
 	/// the current value will be updated.
 	/// For floating point, this is lossy, using 2 bytes for a float and 4 for a double.  The range must be between -1 and +1.
-	/// For non-floating point, this is lossless, but only has benefit if you use less than half the range of the type
+	/// For non-floating point, this is lossless, but only has benefit if you use less than half the bits of the type
 	/// If you are not using __BITSTREAM_NATIVE_END the opposite is true for types larger than 1 byte
 	/// ReadCompressedDelta is only valid from a previous call to WriteDelta
 	/// \param[in] outTemplateVar The value to read
@@ -1703,6 +1740,47 @@ namespace RakNet
 		inline bool BitStream::ReadCompressedDelta(bool &outTemplateVar)
 	{
 		return Read(outTemplateVar);
+	}
+
+	template <class destinationType, class sourceType >
+	void BitStream::WriteCasted( const sourceType &value )
+	{
+		destinationType val = (destinationType) value;
+		Write(val);
+	}
+
+	template <class templateType>
+	void BitStream::WriteBitsFromIntegerRange( const templateType value, const templateType minimum,const templateType maximum, bool allowOutsideRange )
+	{
+		int requiredBits=BYTES_TO_BITS(sizeof(templateType))-NumberOfLeadingZeroes(templateType(maximum-minimum));
+		WriteBitsFromIntegerRange(value,minimum,maximum,requiredBits,allowOutsideRange);
+	}
+	template <class templateType>
+	void BitStream::WriteBitsFromIntegerRange( const templateType value, const templateType minimum,const templateType maximum, const int requiredBits, bool allowOutsideRange )
+	{
+		RakAssert(maximum>=minimum);
+		RakAssert(allowOutsideRange==true || (value>=minimum && value<=maximum));
+		if (allowOutsideRange)
+		{
+			if (value<minimum || value>maximum)
+			{
+				Write(true);
+				Write(value);
+				return;
+			}
+			Write(false);
+		}
+		templateType valueOffMin=value-minimum;
+		if (IsBigEndian()==true)
+		{
+			unsigned char output[sizeof(templateType)];
+			ReverseBytes((unsigned char*)&valueOffMin, output, sizeof(templateType));
+			WriteBits(output,requiredBits);
+		}
+		else
+		{
+			WriteBits((unsigned char*) &valueOffMin,requiredBits);
+		}
 	}
 
 	template <class templateType> // templateType for this function must be a float or double
@@ -1784,6 +1862,47 @@ namespace RakNet
 		WriteNormQuat(qw,qx,qy,qz);
 	}
 
+	template <class serializationType, class sourceType >
+	bool BitStream::ReadCasted( sourceType &value )
+	{
+		serializationType val;
+		bool success = Read(val);
+		value=(sourceType) val;
+		return success;
+	}
+
+	template <class templateType>
+	bool BitStream::ReadBitsFromIntegerRange( templateType &value, const templateType minimum, const templateType maximum, bool allowOutsideRange )
+	{
+		int requiredBits=BYTES_TO_BITS(sizeof(templateType))-NumberOfLeadingZeroes(templateType(maximum-minimum));
+		return ReadBitsFromIntegerRange(value,minimum,maximum,requiredBits,allowOutsideRange);
+	}
+	template <class templateType>
+	bool BitStream::ReadBitsFromIntegerRange( templateType &value, const templateType minimum, const templateType maximum, const int requiredBits, bool allowOutsideRange )
+	{
+		RakAssert(maximum>=minimum);
+		if (allowOutsideRange)
+		{
+			bool isOutsideRange;
+			Read(isOutsideRange);
+			if (isOutsideRange)
+				return Read(value);
+		}
+		unsigned char output[sizeof(templateType)];
+		memset(output,0,sizeof(output));
+		bool success = ReadBits(output,requiredBits);
+		if (success)
+		{
+			if (IsBigEndian()==true)
+				ReverseBytesInPlace(output,sizeof(output));
+			memcpy(&value,output,sizeof(output));
+
+			value+=minimum;
+		}
+
+		return success;
+	}
+
 	template <class templateType> // templateType for this function must be a float or double
 		bool BitStream::ReadNormVector( templateType &x, templateType &y, templateType &z )
 	{
@@ -1813,7 +1932,7 @@ namespace RakNet
 			//	x=((float)sx / 32767.5f - 1.0f) * magnitude;
 			//	y=((float)sy / 32767.5f - 1.0f) * magnitude;
 			//	z=((float)sz / 32767.5f - 1.0f) * magnitude;
-			float cx,cy,cz;
+			float cx=0.0f,cy=0.0f,cz=0.0f;
 			ReadCompressed(cx);
 			ReadCompressed(cy);
 			if (!ReadCompressed(cz))
@@ -1837,7 +1956,7 @@ namespace RakNet
 	template <class templateType> // templateType for this function must be a float or double
 		bool BitStream::ReadNormQuat( templateType &w, templateType &x, templateType &y, templateType &z)
 	{
-		bool cwNeg, cxNeg, cyNeg, czNeg;
+		bool cwNeg=false, cxNeg=false, cyNeg=false, czNeg=false;
 		unsigned short cx,cy,cz;
 		Read(cwNeg);
 		Read(cxNeg);
@@ -1905,13 +2024,15 @@ namespace RakNet
 	template <class templateType>
 	BitStream& operator<<(BitStream& out, templateType& c)
 	{
-		out.WriteRef(c);
+		out.Write(c);
 		return out;
 	}
 	template <class templateType>
 	BitStream& operator>>(BitStream& in, templateType& c)
 	{
 		bool success = in.Read(c);
+		(void)success;
+
 		RakAssert(success);
 		return in;
 	}

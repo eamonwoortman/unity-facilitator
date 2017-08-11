@@ -1,8 +1,16 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 /// \file DS_Table.h
 ///
-/// This file is part of RakNet Copyright 2003 Jenkins Software LLC
-///
-/// Usage of RakNet is subject to the appropriate license agreement.
+
 
 #ifndef __TABLE_H
 #define __TABLE_H
@@ -312,7 +320,7 @@ namespace DataStructures
 		const DataStructures::BPlusTree<unsigned, Row*, _TABLE_BPLUS_TREE_ORDER>& GetRows(void) const;
 
 		/// \brief Get the head of a linked list containing all the row data.
-		DataStructures::Page<unsigned, DataStructures::Table::Row*, _TABLE_BPLUS_TREE_ORDER> * GetListHead(void);
+		DataStructures::Page<unsigned, Row*, _TABLE_BPLUS_TREE_ORDER> * GetListHead(void);
 
 		/// \brief Get the first free row id.
 		/// This could be made more efficient.

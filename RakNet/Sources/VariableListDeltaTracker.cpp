@@ -1,3 +1,13 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 #include "VariableListDeltaTracker.h"
 
 using namespace RakNet;
@@ -7,7 +17,7 @@ VariableListDeltaTracker::~VariableListDeltaTracker()
 {
 	unsigned int i;
 	for (i=0; i < variableList.Size(); i++)
-		rakFree_Ex(variableList[i].lastData,__FILE__,__LINE__);
+		rakFree_Ex(variableList[i].lastData,_FILE_AND_LINE_);
 }
 
 // Call before using a series of WriteVar
@@ -30,7 +40,7 @@ VariableListDeltaTracker::VariableLastValueNode::VariableLastValueNode()
 }
 VariableListDeltaTracker::VariableLastValueNode::VariableLastValueNode(const unsigned char *data, int _byteLength)
 {
-	lastData=(char*) rakMalloc_Ex(_byteLength,__FILE__,__LINE__);
+	lastData=(char*) rakMalloc_Ex(_byteLength,_FILE_AND_LINE_);
 	memcpy(lastData,data,_byteLength);
 	byteLength=_byteLength;
 	isDirty=false;

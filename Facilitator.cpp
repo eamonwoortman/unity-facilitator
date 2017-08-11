@@ -5,7 +5,6 @@
 #include "StringCompressor.h"
 #include "DS_Table.h"
 #include "RakPeerInterface.h"
-#include "RakNetworkFactory.h"
 #include "RakSleep.h"
 #include "MessageIdentifiers.h"
 #include "NatPunchthroughServer.h"
@@ -23,7 +22,9 @@
 #include <time.h>
 #endif
 
-RakPeerInterface *peer;
+using namespace RakNet;
+
+RakPeerInterface *rakPeer;
 NatPunchthroughServer *natPunchthrough;
 bool quit;
 bool printStats = false;
@@ -47,11 +48,16 @@ void cleanup()
 		if (remove(pidFile) != 0)
 			fprintf(stderr, "Failed to remove PID file at %s\n", pidFile);
 	}
-	peer->Shutdown(100, 0);
-	peer->DetachPlugin(natPunchthrough);
-	delete natPunchthrough;
+	rakPeer->Shutdown(100, 0);
+
+	if (natPunchthrough)
+	{
+		rakPeer->DetachPlugin(natPunchthrough);
+		delete natPunchthrough;
+	}
 	natPunchthrough = NULL;
-	RakNetworkFactory::DestroyRakPeerInterface(peer);
+
+	RakPeerInterface::DestroyInstance(rakPeer);
 	Log::print_log("Quitting\n");
 }
 
@@ -115,7 +121,7 @@ void ProcessPacket(Packet *packet)
 	}
 }
 
-bool validate_ip(char* ip)
+bool validate_ip(const char* ip)
 {
 	bool valid = true;
 	int i = 0;
@@ -148,7 +154,7 @@ int main(int argc, char *argv[])
 	setlinebuf(stdout);
 #endif
 
-	peer = RakNetworkFactory::GetRakPeerInterface();	// The facilitator
+	rakPeer = RakPeerInterface::GetInstance();	// The facilitator
 	natPunchthrough = new NatPunchthroughServer;
 
 	// Default values
@@ -161,8 +167,8 @@ int main(int argc, char *argv[])
 	bool useLogFile = false;
 	int statDelay = 30;
 	bool daemonMode = false;
-	char *bindToIP1 = NULL;
-	char *bindToIP2 = NULL;
+	const char *bindToIP1 = NULL;
+	const char *bindToIP2 = NULL;
 
 	// Process command line arguments
 	for (int i = 1; i < argc; i++)
@@ -291,22 +297,22 @@ int main(int argc, char *argv[])
 		perror("Warning, failed to write own PID value to PID file\n");
 #endif
 
-	peer->SetMaximumIncomingConnections(connectionCount);
+	rakPeer->SetMaximumIncomingConnections(connectionCount);
 
-	char ipList[ MAXIMUM_NUMBER_OF_INTERNAL_IDS ][ 16 ];
-	unsigned int binaryAddresses[MAXIMUM_NUMBER_OF_INTERNAL_IDS];
-	SocketLayer::Instance()->GetMyIP( ipList, binaryAddresses );
-
-	int ipCount = 0;
-	int i = 0;
-	while (i < MAXIMUM_NUMBER_OF_INTERNAL_IDS)
+	SystemAddress ipList[MAXIMUM_NUMBER_OF_INTERNAL_IDS];
+	unsigned int i;
+	for (i = 0; i < MAXIMUM_NUMBER_OF_INTERNAL_IDS; i++)
 	{
-		if (ipList[i][0] != 0 && strcmp(ipList[i], "127.0.0.1") != 0)
-			ipCount++;
-		i++;
+		const char* localIP = rakPeer->GetLocalIP(i);
+		ipList[i] = localIP;
+		ipList[i] = rakPeer->GetLocalIP(i);
+		if (strcmp(localIP, UNASSIGNED_SYSTEM_ADDRESS.ToString(false)) != 0)
+			printf("%i. %s\n", i + 1, localIP);
+		else
+			break;
 	}
 
-	if (ipCount < 1)
+	if (i < 1)
 	{
 		Log::error_log("Not enough IP addresses to bind to.\n");
 		Log::error_log("To run the facilitator you need at least one public IP addresses available.\n\n");
@@ -314,8 +320,11 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	if (!bindToIP1)
-		bindToIP1 = ipList[0];
+	if (bindToIP1 != NULL)
+		bindToIP1 = ipList[0].ToString(false);
+
+	if (bindToIP2 == NULL) 
+		bindToIP2 = ipList[1].ToString(false);
 
 	int sdLen = 1;
 	SocketDescriptor sd[2];
@@ -330,14 +339,14 @@ int main(int argc, char *argv[])
 		sdLen = 2;
 	}
 	
-	if (!peer->Startup(8096, 10, sd, sdLen))
+	if (rakPeer->Startup(8096, sd, sdLen) != RakNet::RAKNET_STARTED)
 	{
 		Log::error_log("Failed to start RakPeer!\n");
-		RakNetworkFactory::DestroyRakPeerInterface(peer);
+		cleanup();
 		return 1;
 	}
-	peer->SetTimeoutTime(5000, UNASSIGNED_SYSTEM_ADDRESS);
-	peer->AttachPlugin(natPunchthrough);
+	rakPeer->SetTimeoutTime(5000, UNASSIGNED_SYSTEM_ADDRESS);
+	rakPeer->AttachPlugin(natPunchthrough);
 
 	if (bindToIP2) {
 		printf("Facilitator started on %s:%d and %s:%d\n", bindToIP1, sd[0].port, bindToIP2, sd[1].port);
@@ -366,12 +375,12 @@ int main(int argc, char *argv[])
 	Packet *p;
 	while (!quit)
 	{
-		p=peer->Receive();
+		p=rakPeer->Receive();
 		while (p)
 		{
 			ProcessPacket(p);
-			peer->DeallocatePacket(p);
-			p=peer->Receive();
+			rakPeer->DeallocatePacket(p);
+			p=rakPeer->Receive();
 		}
 		// Is it time to rotate the logs?
 		if (useLogFile)
@@ -396,15 +405,7 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "Failed to remove PID file at %s\n", pidFile);
 	}
 
-	if (natPunchthrough) 
-	{
-		peer->DetachPlugin(natPunchthrough);
-		delete natPunchthrough;
-	}
-
-	natPunchthrough = NULL;
-	peer->Shutdown(100,0);
-	RakNetworkFactory::DestroyRakPeerInterface(peer);
+	cleanup();
 				
 	return 0;
 }

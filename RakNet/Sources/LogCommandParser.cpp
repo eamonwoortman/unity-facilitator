@@ -1,11 +1,21 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 #include "NativeFeatureIncludes.h"
 #if _RAKNET_SUPPORT_LogCommandParser==1
 
 #include "LogCommandParser.h"
 #include "TransportInterface.h"
-#if !defined(_PS3) && !defined(__PS3__) && !defined(SN_TARGET_PS3)
+
 #include <memory.h>
-#endif
+
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
@@ -16,6 +26,10 @@
 #pragma warning( push )
 #endif
 
+using namespace RakNet;
+
+STATIC_FACTORY_DEFINITIONS(LogCommandParser,LogCommandParser);
+
 LogCommandParser::LogCommandParser()
 {
 	RegisterCommand(CommandParserInterface::VARIABLE_NUMBER_OF_PARAMETERS,"Subscribe","[<ChannelName>] - Subscribes to a named channel, or all channels");
@@ -25,7 +39,7 @@ LogCommandParser::LogCommandParser()
 LogCommandParser::~LogCommandParser()
 {
 }
-bool LogCommandParser::OnCommand(const char *command, unsigned numParameters, char **parameterList, TransportInterface *transport, SystemAddress systemAddress, const char *originalString)
+bool LogCommandParser::OnCommand(const char *command, unsigned numParameters, char **parameterList, TransportInterface *transport, const SystemAddress &systemAddress, const char *originalString)
 {
 	(void) originalString;
 
@@ -86,7 +100,7 @@ const char *LogCommandParser::GetName(void) const
 {
 	return "Logger";
 }
-void LogCommandParser::SendHelp(TransportInterface *transport, SystemAddress systemAddress)
+void LogCommandParser::SendHelp(TransportInterface *transport, const SystemAddress &systemAddress)
 {
 	transport->Send(systemAddress, "The logger will accept user log data via the Log(...) function.\r\n");
 	transport->Send(systemAddress, "Each log is associated with a named channel.\r\n");
@@ -95,7 +109,7 @@ void LogCommandParser::SendHelp(TransportInterface *transport, SystemAddress sys
 }
 void LogCommandParser::AddChannel(const char *channelName)
 {
-	unsigned channelIndex;
+	unsigned channelIndex=0;
 	channelIndex = GetChannelIndexFromName(channelName);
 	// Each channel can only be added once.
 	RakAssert(channelIndex==(unsigned)-1);
@@ -161,7 +175,7 @@ void LogCommandParser::WriteLog(const char *channelName, const char *format, ...
 		}
 	}
 }
-void LogCommandParser::PrintChannels(SystemAddress systemAddress, TransportInterface *transport) const
+void LogCommandParser::PrintChannels(const SystemAddress &systemAddress, TransportInterface *transport) const
 {
 	unsigned i;
 	bool anyChannels=false;
@@ -177,17 +191,17 @@ void LogCommandParser::PrintChannels(SystemAddress systemAddress, TransportInter
 	if (anyChannels==false)
 		transport->Send(systemAddress, "None.\r\n");
 }
-void LogCommandParser::OnNewIncomingConnection(SystemAddress systemAddress, TransportInterface *transport)
+void LogCommandParser::OnNewIncomingConnection(const SystemAddress &systemAddress, TransportInterface *transport)
 {
 	(void) systemAddress;
 	(void) transport;
 }
-void LogCommandParser::OnConnectionLost(SystemAddress systemAddress, TransportInterface *transport)
+void LogCommandParser::OnConnectionLost(const SystemAddress &systemAddress, TransportInterface *transport)
 {
 	(void) transport;
 	Unsubscribe(systemAddress, 0);
 }
-unsigned LogCommandParser::Unsubscribe(SystemAddress systemAddress, const char *channelName)
+unsigned LogCommandParser::Unsubscribe(const SystemAddress &systemAddress, const char *channelName)
 {
 	unsigned i;
 	for (i=0; i < remoteUsers.Size(); i++)
@@ -215,7 +229,7 @@ unsigned LogCommandParser::Unsubscribe(SystemAddress systemAddress, const char *
 	}
 	return (unsigned)-1;
 }
-unsigned LogCommandParser::Subscribe(SystemAddress systemAddress, const char *channelName)
+unsigned LogCommandParser::Subscribe(const SystemAddress &systemAddress, const char *channelName)
 {
 	unsigned i;
 	unsigned channelIndex=(unsigned)-1;
@@ -245,7 +259,7 @@ unsigned LogCommandParser::Subscribe(SystemAddress systemAddress, const char *ch
 		newUser.channels=1<<channelIndex;
 	else
 		newUser.channels=0xFFFF;
-	remoteUsers.Insert(newUser, __FILE__, __LINE__);
+	remoteUsers.Insert(newUser, _FILE_AND_LINE_);
 	return channelIndex;
 }
 unsigned LogCommandParser::GetChannelIndexFromName(const char *channelName)

@@ -1,10 +1,17 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 /// \file DS_BinarySearchTree.h
 /// \internal
 /// \brief A binary search tree, and an AVL balanced BST derivation.
 ///
-/// This file is part of RakNet Copyright 2003 Jenkins Software LLC
-///
-/// Usage of RakNet is subject to the appropriate license agreement.
 
 
 #ifndef __BINARY_SEARCH_TREE_H
@@ -61,7 +68,7 @@ namespace DataStructures
 	 * A.Add(10);
 	 * A.Add(15);
 	 * A.Add(5);
-	 * int* array = RakNet::OP_NEW<int >(A.Size(), __FILE__, __LINE__ );
+	 * int* array = RakNet::OP_NEW<int >(A.Size(), _FILE_AND_LINE_ );
 	 * A.DisplayInorder(array);
 	 * array[0]; // returns 5
 	 * array[1]; // returns 10
@@ -166,12 +173,12 @@ namespace DataStructures
 			if ( current->left == 0 )
 				left_height = 0;
 			else
-				left_height = this->Height( current->left );
+				left_height = Height( current->left );
 				
 			if ( current->right == 0 )
 				right_height = 0;
 			else
-				right_height = this->Height( current->right );
+				right_height = Height( current->right );
 				
 			if ( right_height - left_height == 2 )
 			{
@@ -199,7 +206,7 @@ namespace DataStructures
 			if ( current == this->root )
 				break;
 				
-			current = this->FindParent( *( current->item ) );
+			current = FindParent( *( current->item ) );
 			
 		}
 	}
@@ -208,14 +215,14 @@ namespace DataStructures
 	void AVLBalancedBinarySearchTree<BinarySearchTreeType>::Add ( const BinarySearchTreeType& input )
 	{
 	
-		typename BinarySearchTree<BinarySearchTreeType>::node * current = BinarySearchTree<BinarySearchTreeType>::Add ( input, __FILE__,__LINE__ );
+		typename BinarySearchTree<BinarySearchTreeType>::node * current = BinarySearchTree<BinarySearchTreeType>::Add ( input, _FILE_AND_LINE_ );
 		BalanceTree( current, true );
 	}
 	
 	template <class BinarySearchTreeType>
 	void AVLBalancedBinarySearchTree<BinarySearchTreeType>::Del( const BinarySearchTreeType& input )
 	{
-		typename BinarySearchTree<BinarySearchTreeType>::node * current = BinarySearchTree<BinarySearchTreeType>::Del( input, __FILE__,__LINE__ );
+		typename BinarySearchTree<BinarySearchTreeType>::node * current = BinarySearchTree<BinarySearchTreeType>::Del( input, _FILE_AND_LINE_ );
 		BalanceTree( current, false );
 		
 	}
@@ -226,7 +233,7 @@ namespace DataStructures
 		if ( A == 0 )
 			return false;
 			
-		return this->Height( A->right ) > this->Height( A->left );
+		return Height( A->right ) > Height( A->left );
 	}
 	
 	template <class BinarySearchTreeType>
@@ -235,7 +242,7 @@ namespace DataStructures
 		if ( A == 0 )
 			return false;
 			
-		return this->Height( A->left ) > this->Height( A->right );
+		return Height( A->left ) > Height( A->right );
 	}
 	
 	template <class BinarySearchTreeType>
@@ -272,8 +279,8 @@ namespace DataStructures
 		
 		*/
 		
-		B = this->FindParent( *( C->item ) );
-		A = this->FindParent( *( B->item ) );
+		B = FindParent( *( C->item ) );
+		A = FindParent( *( B->item ) );
 		D = C->right;
 		
 		if ( A )
@@ -336,8 +343,8 @@ namespace DataStructures
 		
 		*/
 		
-		B = this->FindParent( *( C->item ) );
-		A = this->FindParent( *( B->item ) );
+		B = FindParent( *( C->item ) );
+		A = FindParent( *( B->item ) );
 		D = C->left;
 		
 		if ( A )
@@ -369,7 +376,7 @@ namespace DataStructures
 	template <class BinarySearchTreeType>
 	AVLBalancedBinarySearchTree<BinarySearchTreeType>::~AVLBalancedBinarySearchTree()
 	{
-		this->Clear(__FILE__,__LINE__);
+		this->Clear(_FILE_AND_LINE_);
 	}
 	
 	template <class BinarySearchTreeType>
@@ -418,7 +425,7 @@ namespace DataStructures
 	template <class BinarySearchTreeType>
 	BinarySearchTree<BinarySearchTreeType>::~BinarySearchTree()
 	{
-		this->Clear(__FILE__,__LINE__);
+		this->Clear(_FILE_AND_LINE_);
 	}
 	
 	template <class BinarySearchTreeType>
@@ -630,7 +637,7 @@ namespace DataStructures
 						current = current->left;
 					}
 					
-					// Replace the value held by the node to RakNet::OP_DELETE(with the value pointed to by current, __FILE__, __LINE__);
+					// Replace the value held by the node to RakNet::OP_DELETE(with the value pointed to by current, _FILE_AND_LINE_);
 					*( node_to_delete->item ) = *( current->item );
 					
 					// Delete current.
@@ -830,7 +837,7 @@ namespace DataStructures
 					else
 					{
 						//  Otherwise I've done everything I can.  Move up the tree one node
-						parent = this->FindParent( *( current->item ) );
+						parent = FindParent( *( current->item ) );
 						current = parent;
 						just_printed = false;
 					}
@@ -887,7 +894,7 @@ namespace DataStructures
 				else
 				{
 					//  Otherwise I've done everything I can.  Move up the tree one node
-					parent = this->FindParent( *( current->item ) );
+					parent = FindParent( *( current->item ) );
 					current = parent;
 				}
 		}
@@ -1002,7 +1009,7 @@ namespace DataStructures
 			{
 				current = tree_queue.Pop();
 				
-				Add ( *( current->item ), __FILE__, __LINE__ )
+				Add ( *( current->item ), _FILE_AND_LINE_ )
 				
 				;
 				
@@ -1027,7 +1034,7 @@ namespace DataStructures
 		if ( ( &original_copy ) == this )
 			return *this;
 			
-		Clear( __FILE__, __LINE__ );  // Remove the current tree
+		Clear( _FILE_AND_LINE_ );  // Remove the current tree
 		
 		// This is a copy of the constructor.  A bug in Visual C++ made it so if I just put the constructor call here the variable assignments were ignored.
 		BinarySearchTree_size = 0;
@@ -1054,7 +1061,7 @@ namespace DataStructures
 			{
 				current = tree_queue.Pop();
 				
-				Add ( *( current->item ), __FILE__, __LINE__ )
+				Add ( *( current->item ), _FILE_AND_LINE_ )
 				
 				;
 				
@@ -1106,7 +1113,7 @@ namespace DataStructures
 					else // leaf
 					{
 						// Not root node so must have a parent
-						parent = this->FindParent( *( current->item ) );
+						parent = FindParent( *( current->item ) );
 						
 						if ( ( parent->left ) == current )
 							parent->left = 0;

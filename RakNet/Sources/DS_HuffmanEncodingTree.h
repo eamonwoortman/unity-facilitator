@@ -1,9 +1,16 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 /// \file DS_HuffmanEncodingTree.h
 /// \brief \b [Internal] Generates a huffman encoding tree, used for string and global compression.
 ///
-/// This file is part of RakNet Copyright 2003 Jenkins Software LLC
-///
-/// Usage of RakNet is subject to the appropriate license agreement.
 
 
 #ifndef __HUFFMAN_ENCODING_TREE
@@ -14,6 +21,9 @@
 #include "BitStream.h"
 #include "Export.h"
 #include "DS_LinkedList.h" 
+
+namespace RakNet
+{
 
 /// This generates special cases of the huffman encoding tree using 8 bit keys with the additional condition that unused combinations of 8 bits are treated as a frequency of 1
 class RAK_DLL_EXPORT HuffmanEncodingTree
@@ -58,5 +68,7 @@ private:
 
 	void InsertNodeIntoSortedList( HuffmanEncodingTreeNode * node, DataStructures::LinkedList<HuffmanEncodingTreeNode *> *huffmanEncodingTreeNodeList ) const;
 };
+
+} // namespace RakNet
 
 #endif

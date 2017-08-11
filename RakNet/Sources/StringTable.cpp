@@ -1,3 +1,13 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 #include "StringTable.h"
 #include <string.h>
 #include "RakAssert.h"
@@ -10,7 +20,7 @@ StringTable* StringTable::instance=0;
 int StringTable::referenceCount=0;
 
 
-int StrAndBoolComp( char *const &key, const StrAndBool &data )
+int RakNet::StrAndBoolComp( char *const &key, const StrAndBool &data )
 {
 	return strcmp(key,(const char*)data.str);
 }
@@ -26,7 +36,7 @@ StringTable::~StringTable()
 	for (i=0; i < orderedStringList.Size(); i++)
 	{
 		if (orderedStringList[i].b)
-			rakFree_Ex(orderedStringList[i].str, __FILE__, __LINE__ );
+			rakFree_Ex(orderedStringList[i].str, _FILE_AND_LINE_ );
 	}
 }
 
@@ -34,7 +44,7 @@ void StringTable::AddReference(void)
 {
 	if (++referenceCount==1)
 	{
-		instance = RakNet::OP_NEW<StringTable>( __FILE__, __LINE__ );
+		instance = RakNet::OP_NEW<StringTable>( _FILE_AND_LINE_ );
 	}
 }
 void StringTable::RemoveReference(void)
@@ -45,7 +55,7 @@ void StringTable::RemoveReference(void)
 	{
 		if (--referenceCount==0)
 		{
-			RakNet::OP_DELETE(instance, __FILE__, __LINE__);
+			RakNet::OP_DELETE(instance, _FILE_AND_LINE_);
 			instance=0;
 		}
 	}
@@ -62,7 +72,7 @@ void StringTable::AddString(const char *str, bool copyString)
 	sab.b=copyString;
 	if (copyString)
 	{
-		sab.str = (char*) rakMalloc_Ex( strlen(str)+1, __FILE__, __LINE__ );
+		sab.str = (char*) rakMalloc_Ex( strlen(str)+1, _FILE_AND_LINE_ );
 		strcpy(sab.str, str);
 	}
 	else
@@ -71,11 +81,7 @@ void StringTable::AddString(const char *str, bool copyString)
 	}
 
 	// If it asserts inside here you are adding duplicate strings.
-	if (orderedStringList.Insert(sab.str,sab, true, __FILE__,__LINE__)!=(unsigned)-1)
-	{
-		if (copyString)
-			RakNet::OP_DELETE(sab.str, __FILE__, __LINE__);
-	}
+	orderedStringList.Insert(sab.str,sab, true, _FILE_AND_LINE_);
 
 	// If this assert hits you need to increase the range of StringTableType
 	RakAssert(orderedStringList.Size() < (StringTableType)-1);	
@@ -96,13 +102,13 @@ void StringTable::EncodeString( const char *input, int maxCharsToWrite, RakNet::
 	{
 		LogStringNotFound(input);
 		output->Write(false);
-		stringCompressor->EncodeString(input, maxCharsToWrite, output);
+		StringCompressor::Instance()->EncodeString(input, maxCharsToWrite, output);
 	}
 }
 
 bool StringTable::DecodeString( char *output, int maxCharsToWrite, RakNet::BitStream *input )
 {
-	bool hasIndex;
+	bool hasIndex=false;
 	RakAssert(maxCharsToWrite>0);
 
 	if (maxCharsToWrite==0)
@@ -111,7 +117,7 @@ bool StringTable::DecodeString( char *output, int maxCharsToWrite, RakNet::BitSt
 		return false;
 	if (hasIndex==false)
 	{
-		stringCompressor->DecodeString(output, maxCharsToWrite, input);
+		StringCompressor::Instance()->DecodeString(output, maxCharsToWrite, input);
 	}
 	else
 	{

@@ -1,8 +1,16 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 /// \file FileListTransferCBInterface.h
 ///
-/// This file is part of RakNet Copyright 2003 Jenkins Software LLC
-///
-/// Usage of RakNet is subject to the appropriate license agreement.
+
 
 #ifndef __FILE_LIST_TRANSFER_CALLBACK_INTERFACE_H
 #define __FILE_LIST_TRANSFER_CALLBACK_INTERFACE_H
@@ -13,6 +21,9 @@
 #ifdef _MSC_VER
 #pragma warning( push )
 #endif
+
+namespace RakNet
+{
 
 /// \brief Used by FileListTransfer plugin as a callback for when we get a file.
 /// \details You get the last file when fileIndex==numberOfFilesInThisSet
@@ -32,7 +43,7 @@ public:
 		/// \brief The data pointed to by the file
 		char *fileData;
 
-		/// \brief The actual length of this file.
+		/// \brief The amount of data to be downloaded for this file
 		BitSize_t byteLengthOfThisFile;
 
 		/// \brief How many bytes of this file has been downloaded
@@ -54,6 +65,12 @@ public:
 		/// \brief User data passed to one of the functions in the FileList class.
 		/// \details However, on error, this is instead changed to one of the enumerations in the PatchContext structure.
 		FileListNodeContext context;
+
+		/// \brief Who sent this file
+		SystemAddress senderSystemAddress;
+
+		/// \brief Who sent this file. Not valid when using TCP, only RakPeer (UDP)
+		RakNetGUID senderGuid;
 	};
 
 	// Note: If this structure is changed the struct in the swig files need to be changed as well
@@ -73,8 +90,31 @@ public:
 		char *iriDataChunk;
 		/// \param[out] iriWriteOffset Offset in bytes from the start of the file for the data pointed to by iriDataChunk
 		unsigned int iriWriteOffset;
+		/// \param[out] Who sent this file
+		SystemAddress senderSystemAddress;
+		/// \param[out] Who sent this file. Not valid when using TCP, only RakPeer (UDP)
+		RakNetGUID senderGuid;
 		/// \param[in] allocateIrIDataChunkAutomatically If true, then RakNet will hold iriDataChunk for you and return it in OnFile. Defaults to true
 		bool allocateIrIDataChunkAutomatically;
+	};
+
+	struct DownloadCompleteStruct
+	{
+		/// \brief Files are transmitted in sets, where more than one set of files can be transmitted at the same time.
+		/// \details This is the identifier for the set, which is returned by FileListTransfer::SetupReceive
+		unsigned short setID;
+
+		/// \brief The number of files that are in this set.
+		unsigned numberOfFilesInThisSet;
+
+		/// \brief The total length of the transmitted files for this set, after being uncompressed
+		unsigned byteLengthOfThisSet;
+
+		/// \brief Who sent this file
+		SystemAddress senderSystemAddress;
+
+		/// \brief Who sent this file. Not valid when using TCP, only RakPeer (UDP)
+		RakNetGUID senderGuid;
 	};
 
 	FileListTransferCBInterface() {}
@@ -103,7 +143,7 @@ public:
 	/// \details If you are finished with this class, return false.
 	/// At that point OnDereference will be called and the class will no longer be maintained by the FileListTransfer plugin.
 	/// Otherwise return true, and Update will continue to be called.
-	virtual bool OnDownloadComplete(void) {return false;}
+	virtual bool OnDownloadComplete(DownloadCompleteStruct *dcs) {(void) dcs; return false;}
 
 	/// \brief This function is called when this instance is about to be dereferenced by the FileListTransfer plugin.
 	/// \details Update will no longer be called.
@@ -111,6 +151,8 @@ public:
 	/// Otherwise it is up to you to delete it yourself.
 	virtual void OnDereference(void) {}
 };
+
+} // namespace RakNet
 
 #ifdef _MSC_VER
 #pragma warning( pop )

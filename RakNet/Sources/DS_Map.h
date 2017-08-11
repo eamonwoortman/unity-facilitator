@@ -1,10 +1,17 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 /// \file DS_Map.h
 /// \internal
 /// \brief Map
 ///
-/// This file is part of RakNet Copyright 2003 Jenkins Software LLC
-///
-/// Usage of RakNet is subject to the appropriate license agreement.
 
 
 #ifndef __RAKNET_MAP_H
@@ -197,7 +204,7 @@ namespace DataStructures
 		}
 		else
 		{
-			SaveLastSearch(key,mapNodeList.Insert(key,MapNode(key,data), true, __FILE__,__LINE__));
+			SaveLastSearch(key,mapNodeList.Insert(key,MapNode(key,data), true, _FILE_AND_LINE_));
 		}
 	}
 
@@ -229,7 +236,7 @@ namespace DataStructures
 		mapNodeList.GetIndexFromKey(key, &objectExists);
 		RakAssert(objectExists==false);
 #endif
-		SaveLastSearch(key,mapNodeList.Insert(key,MapNode(key,data), true, __FILE__,__LINE__));
+		SaveLastSearch(key,mapNodeList.Insert(key,MapNode(key,data), true, _FILE_AND_LINE_));
 	}
 
 	template <class key_type, class data_type, int (*key_comparison_func)(const key_type&,const key_type&)>
@@ -273,7 +280,7 @@ namespace DataStructures
 	void Map<key_type, data_type, key_comparison_func>::Clear(void)
 	{
 		lastSearchIndexValid=false;
-		mapNodeList.Clear(false, __FILE__, __LINE__);
+		mapNodeList.Clear(false, _FILE_AND_LINE_);
 	}
 
 	template <class key_type, class data_type, int (*key_comparison_func)(const key_type&,const key_type&)>

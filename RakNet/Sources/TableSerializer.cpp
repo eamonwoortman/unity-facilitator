@@ -1,8 +1,20 @@
+/*
+ *  Copyright (c) 2014, Oculus VR, Inc.
+ *  All rights reserved.
+ *
+ *  This source code is licensed under the BSD-style license found in the
+ *  LICENSE file in the root directory of this source tree. An additional grant 
+ *  of patent rights can be found in the PATENTS file in the same directory.
+ *
+ */
+
 #include "TableSerializer.h"
 #include "DS_Table.h"
 #include "BitStream.h"
 #include "StringCompressor.h"
 #include "RakAssert.h"
+
+using namespace RakNet;
 
 void TableSerializer::SerializeTable(DataStructures::Table *in, RakNet::BitStream *out)
 {
@@ -27,7 +39,7 @@ void TableSerializer::SerializeColumns(DataStructures::Table *in, RakNet::BitStr
 	unsigned i;
 	for (i=0; i<columns.Size(); i++)
 	{
-		stringCompressor->EncodeString(columns[i].columnName, _TABLE_MAX_COLUMN_NAME_LENGTH, out);
+		StringCompressor::Instance()->EncodeString(columns[i].columnName, _TABLE_MAX_COLUMN_NAME_LENGTH, out);
 		out->Write((unsigned char)columns[i].columnType);
 	}
 }
@@ -40,7 +52,7 @@ void TableSerializer::SerializeColumns(DataStructures::Table *in, RakNet::BitStr
 	{
 		if (skipColumnIndices.GetIndexOf(i)==(unsigned)-1)
 		{
-			stringCompressor->EncodeString(columns[i].columnName, _TABLE_MAX_COLUMN_NAME_LENGTH, out);
+			StringCompressor::Instance()->EncodeString(columns[i].columnName, _TABLE_MAX_COLUMN_NAME_LENGTH, out);
 			out->Write((unsigned char)columns[i].columnType);
 		}		
 	}
@@ -80,7 +92,7 @@ bool TableSerializer::DeserializeColumns(RakNet::BitStream *in, DataStructures::
 	unsigned i;
 	for (i=0; i<columnSize; i++)
 	{
-		stringCompressor->DecodeString(columnName, 32, in);
+		StringCompressor::Instance()->DecodeString(columnName, 32, in);
 		in->Read(columnType);
 		out->AddColumn(columnName, (DataStructures::Table::ColumnType)columnType);
 	}
@@ -155,7 +167,7 @@ void TableSerializer::SerializeCell(RakNet::BitStream *out, DataStructures::Tabl
 		}
 		else if (columnType==DataStructures::Table::STRING)
 		{
-			stringCompressor->EncodeString(cell->c, 65535, out);
+			StringCompressor::Instance()->EncodeString(cell->c, 65535, out);
 		}
 		else if (columnType==DataStructures::Table::POINTER)
 		{
@@ -175,7 +187,7 @@ void TableSerializer::SerializeCell(RakNet::BitStream *out, DataStructures::Tabl
 }
 bool TableSerializer::DeserializeCell(RakNet::BitStream *in, DataStructures::Table::Cell *cell, DataStructures::Table::ColumnType columnType)
 {
-	bool isEmpty;
+	bool isEmpty=false;
 	double value;
 	void *ptr;
 	char tempString[65535];
@@ -193,7 +205,7 @@ bool TableSerializer::DeserializeCell(RakNet::BitStream *in, DataStructures::Tab
 		}
 		else if (columnType==DataStructures::Table::STRING)
 		{
-			if (stringCompressor->DecodeString(tempString, 65535, in)==false)
+			if (StringCompressor::Instance()->DecodeString(tempString, 65535, in)==false)
 				return false;
 			cell->Set(tempString);
 		}
@@ -221,7 +233,7 @@ bool TableSerializer::DeserializeCell(RakNet::BitStream *in, DataStructures::Tab
 }
 void TableSerializer::SerializeFilterQuery(RakNet::BitStream *in, DataStructures::Table::FilterQuery *query)
 {
-	stringCompressor->EncodeString(query->columnName,_TABLE_MAX_COLUMN_NAME_LENGTH,in,0);
+	StringCompressor::Instance()->EncodeString(query->columnName,_TABLE_MAX_COLUMN_NAME_LENGTH,in,0);
 	in->WriteCompressed(query->columnIndex);
 	in->Write((unsigned char) query->operation);
 	in->Write(query->cellValue->isEmpty);
@@ -237,7 +249,7 @@ bool TableSerializer::DeserializeFilterQuery(RakNet::BitStream *out, DataStructu
 {
 	bool b;
 	RakAssert(query->cellValue);
-	stringCompressor->DecodeString(query->columnName,_TABLE_MAX_COLUMN_NAME_LENGTH,out,0);
+	StringCompressor::Instance()->DecodeString(query->columnName,_TABLE_MAX_COLUMN_NAME_LENGTH,out,0);
 	out->ReadCompressed(query->columnIndex);
 	unsigned char op;
 	out->Read(op);
@@ -313,6 +325,6 @@ void TableSerializer::DeallocateQueryList(DataStructures::Table::FilterQuery *qu
 
 	unsigned i;
 	for (i=0; i < numQueries; i++)
-		RakNet::OP_DELETE(query[i].cellValue, __FILE__, __LINE__);
-	RakNet::OP_DELETE_ARRAY(query, __FILE__, __LINE__);
+		RakNet::OP_DELETE(query[i].cellValue, _FILE_AND_LINE_);
+	RakNet::OP_DELETE_ARRAY(query, _FILE_AND_LINE_);
 }
