@@ -320,7 +320,7 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	if (bindToIP1 != NULL)
+	if (bindToIP1 == NULL)
 		bindToIP1 = ipList[0].ToString(false);
 
 	if (bindToIP2 == NULL) 
