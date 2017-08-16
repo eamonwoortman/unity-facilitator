@@ -34,6 +34,11 @@ then
 	OPTIONS="$OPTIONS -b $UNITY_EXTERNAL_IP_2"
 fi
 
+if [[ $FACILITATOR_PORT ]]
+then
+	OPTIONS="$OPTIONS -p $FACILITATOR_PORT"
+fi
+
 COMMAND="./${BINARYNAME} -d ${OPTIONS}"
 
 # ------------------------------------
