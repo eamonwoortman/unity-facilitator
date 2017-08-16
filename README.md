@@ -22,7 +22,7 @@ If you want to be more in control as to which IP will be used, you can use the `
 
 Accepted parameters are:
 ```
-        -p      Listen port (1-65535)
+        -p      Listen port (1-65535), the default port is 50005
         -d      Daemon mode, run in the background
         -l      Use given log file
         -e      Debug level (0=OnlyErrors, 1=Warnings, 2=Informational(default), 2=FullDebug)
